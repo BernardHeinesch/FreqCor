@@ -1,4 +1,4 @@
-﻿theor\_cosp\_Kaimal.Kaimal\_cosp
+theor\_cosp\_Kaimal.Kaimal\_cosp
 ================================
 
 .. currentmodule:: theor_cosp_Kaimal

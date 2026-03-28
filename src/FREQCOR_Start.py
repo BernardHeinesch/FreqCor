@@ -81,12 +81,12 @@ import argparse
 import sys
 import re
 import traceback
-from FreqCor.FREQCOR_Main import FREQCOR_Main, FREQCORMainError
-from FreqCor.FREQCOR_Read_EP import FREQCORReadError
-from FreqCor.FREQCOR_Sel_cof import FREQCORSelCofError
-from FreqCor.FREQCOR_Compute import FREQCORComputeError
-from FreqCor.FREQCOR_LUT_cof import FREQCORLUTCofError
-from FreqCor.FREQCOR_LUT_CF import FREQCORLUTCFError
+from FREQCOR_Main import FREQCOR_Main, FREQCORMainError
+from FREQCOR_Read_EP import FREQCORReadError
+from FREQCOR_Sel_cof import FREQCORSelCofError
+from FREQCOR_Compute import FREQCORComputeError
+from FREQCOR_LUT_cof import FREQCORLUTCofError
+from FREQCOR_LUT_CF import FREQCORLUTCFError
 import configparser
 
 
@@ -390,4 +390,5 @@ if __name__ == "__main__":
             sys.exit(0)
 
         main(mode='batch', paths=paths, specific_sites=args.sites)
+
 
