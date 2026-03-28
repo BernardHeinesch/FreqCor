@@ -4,7 +4,7 @@ Script to write an .ini file in a python-dictionary format.
 
 Created on Thu Mar 2 16:11:33 2023
 
-@author: Ariane Faures
+@author: Ariane Faurès
 """
 import configparser
 import os
@@ -25,7 +25,7 @@ config['IO'] = {
     '#PATHS_4': 'Path (full, including file name) to file containing Massman coefficients for the site of interest. Optional. Used for plotting of the reference Massman cospectra only.',
     'massman_path': r'input\data\Massman_coef.csv',
     '#PATHS_5': 'Path to input file (csv) containing the ICOS-ETC global flux flag computed according to Vitale et al. 2020. Is only used when the "vitale_qc_flags" option is set to 1.',
-    'vitale_path': r'C:\Users\Ariane Faures\Documents\Multi-site\spectral_corrections_paper\data\icos_sites\c_outputs\0_from_archive_L2_cp\vitale_qc_files',
+    'vitale_path': r'C:\Users\Ariane Faurès\Documents\Multi-site\spectral_corrections_paper\data\icos_sites\c_outputs\0_from_archive_L2_cp\vitale_qc_files',
     '#NAMES_1': 'Name of binned cospectra files (and folder)',
     'binned_cosp': '_binned_cospectra_',
     '#NAMES_2': 'Name of file containing flux, meteo and QC data.',
@@ -133,3 +133,4 @@ config['PROCESSED_DATA'] = {
 
 with open('FREQCOR_input.ini', 'w') as configfile:
     config.write(configfile)
+

@@ -2,7 +2,7 @@
 """
 Created on Thu Aug  4 14:49:58 2022
 
-@author: Ariane Faures
+@author: Ariane Faurès
 """
 
 import numpy as np
@@ -143,5 +143,6 @@ def FREQCOR_Flux(nspec, sps, gss, meteo_df, WS, WD, Zeta, LUTCF_u,
         CF_G = CF_G*CFHL
 
     return [FccorL, FccorG, CFHL, CF_L, CF_G]
+
 
 

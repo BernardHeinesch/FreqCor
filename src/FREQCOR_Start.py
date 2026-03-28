@@ -59,7 +59,7 @@ Usage:
 Authorship & Acknowledgments:
 -----------------------------
 - Original MATLAB version by Marc Aubinet
-- Python translation and extension: Ariane Faures
+- Python translation and extension: Ariane Faurès
 - Contributions: [see repository contributors]
 
 References & Documentation:
@@ -390,5 +390,6 @@ if __name__ == "__main__":
             sys.exit(0)
 
         main(mode='batch', paths=paths, specific_sites=args.sites)
+
 
 

@@ -70,7 +70,7 @@ The main entry point is `src/FREQCOR_Start.py`, which reads an `.ini` configurat
 
 ## Authors
 
-This tool has been written by Ariane Faures (BioDynE research axis, Gembloux Agro-Bio Tech, University of Liege, Belgium).
+This tool has been written by Ariane Faurès (BioDynE research axis, Gembloux Agro-Bio Tech, University of Liege, Belgium).
 
 ## Citation
 
