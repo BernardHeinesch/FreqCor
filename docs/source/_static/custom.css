@@ -1,0 +1,4 @@
+/* Hide the entire footer (copyright + 'Built with Sphinx...') */
+footer {
+  display: none !important;
+}

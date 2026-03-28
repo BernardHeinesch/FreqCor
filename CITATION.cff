@@ -1,0 +1,25 @@
+﻿cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+  - family-names: "Faurès"
+    given-names: "Ariane"
+    affiliation: "University of Liege, Gembloux Agro-Bio Tech Faculty"
+  - family-names: "Heinesch"
+    given-names: "Bernard"
+    orcid: "0000-0001-7594-6341"
+    affiliation: "University of Liege, Gembloux Agro-Bio Tech Faculty"
+title: "FreqCor"
+version: 1.3
+date-released: "2026-03-28"
+url: "https://github.com/BernardHeinesch/FreqCor"
+repository-code: "https://github.com/BernardHeinesch/FreqCor"
+license: Apache-2.0
+type: software
+keywords:
+  - eddy-covariance
+  - spectral-correction
+  - cospectral-correction
+  - micrometeorology
+abstract: >
+  FreqCor (Frequency Correction) is a Python toolbox to compute and apply spectral/cospectral
+  correction factors to eddy covariance fluxes.
