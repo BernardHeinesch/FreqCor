@@ -3,7 +3,9 @@
 import os
 import sys
 
-sys.path.insert(0, os.path.abspath('../../src'))
+_HERE = os.path.abspath(os.path.dirname(__file__))
+_SRC = os.path.abspath(os.path.join(_HERE, "..", "..", "src"))
+sys.path.insert(0, _SRC)
 
 # -- Project information -----------------------------------------------------
 
@@ -65,9 +67,8 @@ html_static_path = ['_static']
 html_css_files = [
     'custom.css',
 ]
-html_extra_path = [
-    '../../examples/output',
-]
+_EXAMPLES_OUTPUT = os.path.abspath(os.path.join(_HERE, "..", "..", "examples", "output"))
+html_extra_path = [_EXAMPLES_OUTPUT] if os.path.exists(_EXAMPLES_OUTPUT) else []
 
 myst_enable_extensions = [
     'colon_fence',
