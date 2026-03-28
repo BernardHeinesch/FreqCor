@@ -11,6 +11,11 @@ Two types of inputs are currently supported: (i) outputs from an EddyPro run (bi
 
 Handling of other input formats can be easily implemented by replacing the read routine by your own.
 
+## Documentation
+
+The HTML documentation is available online via GitHub Pages:
+[https://bernardheinesch.github.io/FreqCor/](https://bernardheinesch.github.io/FreqCor/)
+
 ## Installation
 
 ### Option 1: pip + venv
@@ -51,11 +56,6 @@ Outputs are written under `examples/output/` (or under the `output_path` configu
 The repository ships with an example dataset from the ICOS Lonzee station (BE-Lon). It includes EddyPro-generated inputs covering two spring months of 2024 over a winter wheat crop.
 
 The example INI file is configured for a **CO2 cospectral** run on this dataset.
-
-## Documentation
-
-The HTML documentation is available online via GitHub Pages:
-[https://bernardheinesch.github.io/FreqCor/](https://bernardheinesch.github.io/FreqCor/)
 
 ## Description
 
