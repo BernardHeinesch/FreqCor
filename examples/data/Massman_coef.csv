@@ -1,0 +1,16 @@
+﻿# Massman_coef.csv format
+#
+# Columns:
+# - First column `var`: name of the fitted Massman parameters (e.g. A0, kf0, mu)
+# - One column per site ID (e.g. BE-Lon)
+#
+# Values:
+# - Each cell in a site column contains TWO values separated by a comma:
+#   "<stable>,<unstable>"
+# - The first value is for STABLE atmospheric conditions (z/L > 0)
+# - The second value is for UNSTABLE atmospheric conditions (z/L < 0)
+#
+var,BE-Dor,BE-Lon,BE-Vie
+A0,"3.1671,3.3858","1.7723,2.2449","4.4546,3.8269"
+kf0,"0.1365,0.1308","0.223,0.1472","0.3714,0.1964"
+mu,"0.2836,0.2767","0.373,0.3365","0.2461,0.2494"
