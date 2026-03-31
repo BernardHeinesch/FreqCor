@@ -35,7 +35,6 @@ ENV/
 .ipynb_checkpoints
 
 # Data and outputs (customize as needed)
-examples/output/*
 !examples/data/.gitkeep
 !examples/output/.gitkeep
 
