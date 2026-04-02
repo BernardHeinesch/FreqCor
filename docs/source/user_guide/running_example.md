@@ -9,12 +9,10 @@ The provided example configuration file:
 
 is set up to run a **cospectral** workflow for **CO2** on this example dataset.
 
-1. Open the example configuration file and verify that paths still point to your local repository.
+1. Run the main entry point:
 
-2. Run the main entry point:
+   - Open `src/FREQCOR_Start.py` and run it.
 
-   - Open `src/FREQCOR_Start.py`.
-   - In the *MANUAL MODE* section, set `ini_file` to `examples/metadata/FREQCOR_config_example.ini`.
-   - Run `FREQCOR_Start.py` from the `src` directory.
+2. In case of path problems, check the *MANUAL MODE* section in FREQCOR_Start.py for .ini file path, and the file paths in the `examples/metadata/FREQCOR_config_example.ini`.
 
 Outputs are written under `examples/output/` (or under the `output_path` configured in the INI file). For a description of the generated results, see the **Outputs** section.
