@@ -37,7 +37,6 @@ setup(
         "FREQCOR_VM_flag",
         "FREQCOR_write_outputs",
         "theor_cosp_Kaimal",
-        "write_ini",
     ],
     package_dir={"": "src"},
     classifiers=[
@@ -49,3 +48,4 @@ setup(
     python_requires=">=3.7",
     install_requires=requirements,
 )
+
