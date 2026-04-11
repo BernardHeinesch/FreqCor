@@ -101,7 +101,7 @@ The INI file is organized into sections:
 
 - Transfer-function options
   - `tf_sonic`: apply theoretical correction to sonic cospectra (`0`/`1`).
-  - `tf_peltola`: enable Peltola et al. (2021) fit form where applicable (`0`/`1`).
+  - `tf_peltola`: enable Peltola et al. (2021) fit form where applicable (`0`/`1`) (affects the Lorentz fit form only; Gaussian TF is unchanged).
 
 - Plotting options (`0`/`1`)
   - `plot_hh`: individual half-hour plots (very verbose).

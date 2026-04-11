@@ -89,15 +89,30 @@ from FREQCOR_LUT_cof import FREQCORLUTCofError
 from FREQCOR_LUT_CF import FREQCORLUTCFError
 import configparser
 
+## MANUAL MODE ##
+# Runs the code directly with the .ini file provided.
+# Insert ini file to be processed
+manual = True
+if manual == True:
+    ini_file = r"..\examples\metadata\FREQCOR_config_example.ini"
 
-def _normalize_io_paths(config):
-    """Normalize [IO] paths.
+    ini_file = ini_file.strip().strip('"')
+    if not ini_file:
+        raise ValueError('Please set ini_file to a valid .ini path (paste the full path as a raw string).')
 
-    Assumption: paths in the INI are either absolute, or relative to the project
-    root folder (i.e. the parent folder of this script's 'src' directory).
-    """
-    if not config.has_section('IO'):
-        return
+    if os.path.isabs(ini_file):
+        ini_file = os.path.normpath(ini_file)
+    else:
+        _src_dir = os.path.dirname(os.path.abspath(__file__))
+        ini_file = os.path.normpath(os.path.join(_src_dir, ini_file))
+
+    if not os.path.isfile(ini_file):
+        raise FileNotFoundError(f"INI file not found: {ini_file}")
+
+    config = configparser.ConfigParser()
+    loaded_files = config.read(ini_file)
+    if (not loaded_files) or (not config.has_section('IO')):
+        raise ValueError(f"Invalid INI: failed to load or missing [IO] section: {ini_file}")
 
     repo_root = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
     for key in ['input_path', 'input_path_sp', 'massman_path', 'vitale_path', 'output_path']:
@@ -108,17 +123,6 @@ def _normalize_io_paths(config):
             continue
         config.set('IO', key, os.path.normpath(os.path.join(repo_root, val)))
 
-
-## MANUAL MODE ##
-# Runs the code directly with the .ini file provided.
-# Insert ini file to be processed
-manual = True
-if manual == True:
-    _src_dir = os.path.dirname(os.path.abspath(__file__))
-    ini_file = os.path.normpath(os.path.join(_src_dir, '..', 'examples', 'metadata', 'FREQCOR_config_example.ini'))
-    config = configparser.ConfigParser()
-    config.read(ini_file)
-    _normalize_io_paths(config)
     LUTcof, LUTCF_u, LUTCF_s = FREQCOR_Main(config)
     sys.exit()
 
@@ -186,7 +190,16 @@ def process_ini_files(ini_files, results_dir, label):
         # Read the configuration
         config = configparser.ConfigParser()
         config.read(ini_file)
-        _normalize_io_paths(config)
+
+        if config.has_section('IO'):
+            repo_root = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+            for key in ['input_path', 'input_path_sp', 'massman_path', 'vitale_path', 'output_path']:
+                if not config.has_option('IO', key):
+                    continue
+                val = config.get('IO', key)
+                if not val or os.path.isabs(val):
+                    continue
+                config.set('IO', key, os.path.normpath(os.path.join(repo_root, val)))
 
         # Extract configuration details for results tracking
         try:

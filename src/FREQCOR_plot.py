@@ -1,10 +1,11 @@
 ﻿# -*- coding: utf-8 -*-
 """Plotting utilities used across the FREQCOR processing pipeline."""
+import os
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 import numpy as np
 import pandas as pd
-from theor_cosp_Kaimal import Kaimal_cosp
+from FREQCOR_Ref_cospectrum_for_plotting import Kaimal_cosp
 
 
 _FREQCOR_PLOT_COLORS = {
@@ -24,7 +25,7 @@ def _single_plot_fontsizes():
         'legend_fs': 11,
     }
 
-def plot_TF_unified(fun1, fun2, x, y, cofmat, denoising, plot, outputpath, norm_range, j_class=None, jrh_class=None, hh_name=None, pause=3, gas_type='co2', all_classes_data=None, file_tag=None):
+def plot_TF_unified(fun1, fun2, x, y, cofmat, denoising, plot, outputpath, norm_range, j_class=None, jrh_class=None, hh_name=None, pause=3, gas_type='co2', all_classes_data=None, file_tag=None, sps=None):
     """
     Plot experimental and fitted transfer functions.
 
@@ -62,6 +63,9 @@ def plot_TF_unified(fun1, fun2, x, y, cofmat, denoising, plot, outputpath, norm_
         Multi-class container holding lists of `x`, `y`, `cofmat`, `fnmat`, etc.
     file_tag : str, optional
         Output filename tag (required when saving is enabled).
+    sps : int, optional
+        Input type selector used for titles:
+        1 = cospectra, 2 = spectra.
 
     Returns
     -------
@@ -77,6 +81,9 @@ def plot_TF_unified(fun1, fun2, x, y, cofmat, denoising, plot, outputpath, norm_
     def _pos(v, idx):
         return v.iloc[idx] if hasattr(v, 'iloc') else v[idx]
 
+    def _is_peltola_fun(f):
+        return getattr(f, '__name__', '') == 'fun_Lorentz_peltola'
+
     if all_classes_data is not None:
         # Multi-class mode
         x_list = all_classes_data['x']
@@ -89,6 +96,11 @@ def plot_TF_unified(fun1, fun2, x, y, cofmat, denoising, plot, outputpath, norm_
         original_trafun_data = all_classes_data.get('original_trafun', None)
         original_freq_data = all_classes_data.get('original_freq', None)
         ws_list = all_classes_data.get('ws', [None] * num_classes)
+        ws_min_list = all_classes_data.get('ws_min', [None] * num_classes)
+        ws_max_list = all_classes_data.get('ws_max', [None] * num_classes)
+        n_list = all_classes_data.get('n', [None] * num_classes)
+        parent_range = all_classes_data.get('parent_range', None)
+        parent_n = all_classes_data.get('parent_n', None)
         
         # Determine subplot layout based on number of classes
         if num_classes <= 3:
@@ -108,6 +120,8 @@ def plot_TF_unified(fun1, fun2, x, y, cofmat, denoising, plot, outputpath, norm_
         for i in range(num_classes, len(axes)):
             axes[i].set_visible(False)
         
+        is_peltola = _is_peltola_fun(fun1)
+
         for i in range(num_classes):
             if i < len(x_list) and i < len(y_list) and i < len(cofmat_list):
                 if len(x_list[i]) > 0 and not np.isnan(_pos(cofmat_list[i], 0)) and not np.isnan(_pos(cofmat_list[i], 2)):
@@ -135,6 +149,8 @@ def plot_TF_unified(fun1, fun2, x, y, cofmat, denoising, plot, outputpath, norm_
                     # Generate fitted curves using the original x values
                     yfit1 = fun1(x_list[i], _pos(cofmat_list[i], 0), _pos(fn_list[i], 0))
                     yfit2 = fun2(x_list[i], _pos(cofmat_list[i], 2), _pos(fn_list[i], 2))
+                    fco_label = f"{_pos(cofmat_list[i], 0):.2f}{'*' if is_peltola else ''}"
+
                     if denoising[i]['active']:
                         axes[i].plot(
                             x_list[i],
@@ -142,7 +158,7 @@ def plot_TF_unified(fun1, fun2, x, y, cofmat, denoising, plot, outputpath, norm_
                             '-',
                             color=_FREQCOR_PLOT_COLORS['lorentz'],
                             label='Lorentz '
-                            f'(fco={_pos(cofmat_list[i], 0):.2f}, Fn={_pos(fn_list[i], 0):.2f})\n A21 denoising',
+                            f'(fco={fco_label}, Fn={_pos(fn_list[i], 0):.2f})\n A21 denoising',
                         )
                     else:
                         axes[i].plot(
@@ -151,7 +167,7 @@ def plot_TF_unified(fun1, fun2, x, y, cofmat, denoising, plot, outputpath, norm_
                             '-',
                             color=_FREQCOR_PLOT_COLORS['lorentz'],
                             label='Lorentz '
-                            f'(fco={_pos(cofmat_list[i], 0):.2f}, Fn={_pos(fn_list[i], 0):.2f})',
+                            f'(fco={fco_label}, Fn={_pos(fn_list[i], 0):.2f})',
                         )
                         
                     axes[i].plot(
@@ -189,10 +205,14 @@ def plot_TF_unified(fun1, fun2, x, y, cofmat, denoising, plot, outputpath, norm_
                     axes[i].legend()
                     
                     # Add class title with wind speed if available
+                    title_parts = [f'Class {i+1}']
                     if ws_list[i] is not None:
-                        axes[i].set_title(f'Class {i+1}: WS = {ws_list[i]:.2f} m/s')
-                    else:
-                        axes[i].set_title(f'Class {i+1}')
+                        title_parts.append(f"WS={ws_list[i]:.2f} m/s")
+                    if ws_min_list[i] is not None and ws_max_list[i] is not None:
+                        title_parts.append(f"[{ws_min_list[i]:.2f}..{ws_max_list[i]:.2f}]")
+                    if n_list[i] is not None:
+                        title_parts.append(f"N={int(n_list[i])}")
+                    axes[i].set_title(': '.join(title_parts[:1]) + (' ' + ' '.join(title_parts[1:]) if len(title_parts) > 1 else ''))
                 else:
                     axes[i].text(0.5, 0.5, 'Insufficient data for fitting', 
                                horizontalalignment='center', verticalalignment='center',
@@ -203,10 +223,38 @@ def plot_TF_unified(fun1, fun2, x, y, cofmat, denoising, plot, outputpath, norm_
                            transform=axes[i].transAxes)
         
         # Add overall title
+        data_label = None
+        if sps == 1:
+            data_label = 'cospectra'
+        elif sps == 2:
+            data_label = 'spectra'
+
+        extra_label = f' - {data_label}' if data_label else ''
+        parent_extra = ''
+        if parent_range is not None:
+            if gas_type.lower() == 'co2':
+                parent_extra = f" (WD range: {parent_range[0]:.1f}..{parent_range[1]:.1f} deg"
+            else:
+                parent_extra = f" (RH range: {parent_range[0]:.1f}..{parent_range[1]:.1f}"
+            if parent_n is not None:
+                parent_extra += f", N={int(parent_n)}"
+            parent_extra += ")"
+
         if gas_type.lower() == 'co2':
-            plt.suptitle(f'Experimental and fitted TF for different wind speed classes - CO2 (WD Class {jrh_class})')
+            plt.suptitle(f'Experimental and fitted TF for different wind speed classes{extra_label} - CO2 (WD Class {jrh_class}){parent_extra}')
         else:  # h2o
-            plt.suptitle(f'Experimental and fitted TF for different wind speed classes - H2O (RH Class {jrh_class})')
+            plt.suptitle(f'Experimental and fitted TF for different wind speed classes{extra_label} - H2O (RH Class {jrh_class}){parent_extra}')
+
+        if is_peltola:
+            fig.text(
+                0.99,
+                0.01,
+                '* Peltola: cof refers to TF² (power attenuation)',
+                ha='right',
+                va='bottom',
+                fontsize=8,
+                alpha=0.8,
+            )
         
         plt.tight_layout()
         
@@ -302,6 +350,11 @@ def plot_cosp_unified(freq, Rcosv, Icosv, ws, denoising, zL=None, sps=None, j_cl
         Rcosv_list = all_classes_data['Rcosv']
         Icosv_list = all_classes_data['Icosv']
         ws_list = all_classes_data['ws']
+        ws_min_list = all_classes_data.get('ws_min', [None] * num_classes)
+        ws_max_list = all_classes_data.get('ws_max', [None] * num_classes)
+        n_list = all_classes_data.get('n', [None] * num_classes)
+        parent_range = all_classes_data.get('parent_range', None)
+        parent_n = all_classes_data.get('parent_n', None)
         zL = all_classes_data['zL']
         
         # Determine subplot layout based on number of classes
@@ -353,10 +406,14 @@ def plot_cosp_unified(freq, Rcosv, Icosv, ws, denoising, zL=None, sps=None, j_cl
                     
                     # Add class title
                     # Add class title with wind speed if available
+                    title_parts = [f'Class {i+1}']
                     if ws_list[i] is not None:
-                        axes[i].set_title(f'Class {i+1}: WS = {ws_list[i]:.2f} m/s')
-                    else:
-                        axes[i].set_title(f'Class {i+1}')
+                        title_parts.append(f"WS={ws_list[i]:.2f} m/s")
+                    if ws_min_list[i] is not None and ws_max_list[i] is not None:
+                        title_parts.append(f"[{ws_min_list[i]:.2f}..{ws_max_list[i]:.2f}]")
+                    if n_list[i] is not None:
+                        title_parts.append(f"N={int(n_list[i])}")
+                    axes[i].set_title(': '.join(title_parts[:1]) + (' ' + ' '.join(title_parts[1:]) if len(title_parts) > 1 else ''))
                 else:
                     axes[i].text(0.5, 0.5, 'Insufficient data', 
                                horizontalalignment='center', verticalalignment='center',
@@ -367,10 +424,27 @@ def plot_cosp_unified(freq, Rcosv, Icosv, ws, denoising, zL=None, sps=None, j_cl
                            transform=axes[i].transAxes)
         
         # Add overall title
+        data_label = None
+        if sps == 1:
+            data_label = 'cospectra'
+        elif sps == 2:
+            data_label = 'spectra'
+
+        label = data_label or '(co)spectra'
+        parent_extra = ''
+        if parent_range is not None:
+            if gas_type.lower() == 'co2':
+                parent_extra = f" (WD range: {parent_range[0]:.1f}..{parent_range[1]:.1f} deg"
+            else:
+                parent_extra = f" (RH range: {parent_range[0]:.1f}..{parent_range[1]:.1f}"
+            if parent_n is not None:
+                parent_extra += f", N={int(parent_n)}"
+            parent_extra += ")"
+
         if gas_type.lower() == 'co2':
-            plt.suptitle(f'Mean (co)spectra for different wind speed classes - CO2 (WD Class {jrh_class})')
+            plt.suptitle(f'Mean {label} for different wind speed classes - CO2 (WD Class {jrh_class}){parent_extra}')
         else:  # h2o
-            plt.suptitle(f'Mean (co)spectra for different wind speed classes - H2O (RH Class {jrh_class})')
+            plt.suptitle(f'Mean {label} for different wind speed classes - H2O (RH Class {jrh_class}){parent_extra}')
         
         plt.tight_layout()
         
@@ -393,10 +467,17 @@ def plot_cosp_unified(freq, Rcosv, Icosv, ws, denoising, zL=None, sps=None, j_cl
         plt.tick_params(axis='both', which='both', labelsize=fs['tick_fs'])
         plt.legend(fontsize=fs['legend_fs'])
         
+        data_label = None
+        if sps == 1:
+            data_label = 'cospectra'
+        elif sps == 2:
+            data_label = 'spectra'
+
+        label = data_label or '(co)spectra'
         if gas_type.lower() == 'co2':
-            plt.title(f'Mean (co)spectra - Class {j_class}: WS = {ws:.2f} m/s', fontsize=fs['title_fs'])
+            plt.title(f'Mean {label} - Class {j_class}: WS = {ws:.2f} m/s', fontsize=fs['title_fs'])
         else:  # h2o
-            plt.title(f'Mean (co)spectra - RH Class {jrh_class}, WS Class {j_class}: WS = {ws:.2f} m/s', fontsize=fs['title_fs'])
+            plt.title(f'Mean {label} - RH Class {jrh_class}, WS Class {j_class}: WS = {ws:.2f} m/s', fontsize=fs['title_fs'])
         
         if plot is not None and plot[3] == 1 and outputpath is not None:
             if file_tag is None:
@@ -596,8 +677,8 @@ def hist_pdf_cof(cofmat_full, hist_Ldist, hist_Gdist, X_bound, plot, outputpath,
              bins = 100)
     axs[1,0].set_title('Histogram of 1/2 h cof (Gauss fit)', fontsize=fs['title_fs'])
 
-    axs[0,0].set_ylabel('nÂ° of 1/2 hours', fontsize=fs['label_fs'])
-    axs[1,0].set_ylabel('nÂ° of 1/2 hours', fontsize=fs['label_fs'])
+    axs[0,0].set_ylabel('n° of 1/2 hours', fontsize=fs['label_fs'])
+    axs[1,0].set_ylabel('n° of 1/2 hours', fontsize=fs['label_fs'])
     axs[1,0].set_xlabel('Cut-off Frequency [Hz]', fontsize=fs['label_fs'])
     
     axs[1, 0].sharex(axs[0, 0])
@@ -700,7 +781,8 @@ def plot_u_cf(all_data_cf, gss, plot, outputpath, stability, file_tag=None):
         axes[i].set_visible(False)
     
     for i in range(num_classes):
-        ws = all_data_cf[i+1]['ws']
+        ws_l = all_data_cf[i+1]['ws_l']
+        ws_g = all_data_cf[i+1]['ws_g']
         cf_l = all_data_cf[i+1]['cf_l']
         cf_g = all_data_cf[i+1]['cf_g']
         av_ws = all_data_cf[i+1]['mean_ws']
@@ -708,18 +790,18 @@ def plot_u_cf(all_data_cf, gss, plot, outputpath, stability, file_tag=None):
         av_cf_g = all_data_cf[i+1]['mean_cf_g']
         av_rh = all_data_cf[i+1][mainvar]
         # Check if data is valid
-        if len(ws) > 0 and len(av_ws) > 0:
+        if len(ws_l) > 0 and len(ws_g) > 0 and len(av_ws) > 0:
             try:
                 # Plot data for each class
                 axes[i].plot(
-                    ws,
+                    ws_l,
                     cf_l,
                     '.',
                     color=_FREQCOR_PLOT_COLORS['cf_points'],
                     label='_nolegend_',
                 )
                 axes[i].plot(
-                    ws,
+                    ws_g,
                     cf_g,
                     '.',
                     color=_FREQCOR_PLOT_COLORS['cf_points'],
@@ -753,13 +835,36 @@ def plot_u_cf(all_data_cf, gss, plot, outputpath, stability, file_tag=None):
                 if gss == 2:
                     axes[i].set_title(f'RH Class {i+1}: rh_mean = {av_rh:.2f} %', fontsize=title_fs)
                 else:
-                    axes[i].set_title(f'WD Class {i+1}: wd_mean = {av_rh:.2f} Â°', fontsize=title_fs)
+                    axes[i].set_title(f'WD Class {i+1}: wd_mean = {av_rh:.2f} °', fontsize=title_fs)
             except: 
                 print('Error in plotting CF vs ws data')    
                 continue
             
     
-    fig.suptitle('CF vs WS. ' + stability + 'able conditions.', fontsize=suptitle_fs, y=0.99)
+    data_label = None
+    if isinstance(file_tag, str) and file_tag:
+        tag = file_tag.lower()
+        if '__cosp__' in tag or '_cosp__' in tag:
+            data_label = 'cospectra'
+        elif '__sp__' in tag or '_sp__' in tag:
+            data_label = 'spectra'
+
+    extra_parts = [f"{stability}able conditions"]
+    if data_label:
+        extra_parts.append(data_label)
+    extra_label = f" ({', '.join(extra_parts)})" if extra_parts else ""
+    fig.suptitle('CF vs WS' + extra_label, fontsize=suptitle_fs, y=0.99)
+
+    fig.subplots_adjust(bottom=0.28)
+
+    fig.text(
+        0.5,
+        0.02,
+        'Note: CF scatter points are shown after outlier detection/removal (IQR method). See 7_stats__<run_tag>.txt for removed values.',
+        ha='center',
+        va='bottom',
+        fontsize=fs['tick_fs'],
+    )
 
     if num_classes > 0:
         legend_elements = [
@@ -798,7 +903,7 @@ def plot_u_cf(all_data_cf, gss, plot, outputpath, stability, file_tag=None):
             frameon=True,
         )
 
-    plt.tight_layout(rect=[0, 0, 1, 0.97])
+    plt.tight_layout(rect=[0, 0.08, 1, 0.97])
     
     if plot is not None and plot[3] == 1 and outputpath is not None:
         if file_tag is None:
@@ -956,6 +1061,43 @@ def plot_stepwise_filtering(
 
     if step_plot_info is None:
         step_plot_info = {}
+ 
+    # ---- Figure-level context title (used for 3_*.png outputs)
+    figure_title = None
+    if isinstance(filename, str) and filename:
+        name = os.path.splitext(os.path.basename(filename))[0]
+        if name.startswith("3_"):
+            stability_label = None
+            if "_unst" in name:
+                stability_label = "unstable"
+            elif "_st" in name:
+                stability_label = "stable"
+
+            data_label = None
+            low_name = name.lower()
+            if "__cosp__" in low_name or "_cosp__" in low_name:
+                data_label = "cospectra"
+            elif "__sp__" in low_name or "_sp__" in low_name:
+                data_label = "spectra"
+
+            if "filtering_CF" in name:
+                purpose_label = "half-hour filtering for CF"
+            elif "filtering_cof" in name:
+                purpose_label = "half-hour filtering for cof"
+            else:
+                purpose_label = "half-hour filtering"
+
+            extra = []
+            if stability_label is not None:
+                extra.append(stability_label)
+
+            if data_label is not None:
+                extra.append(data_label)
+
+            if extra:
+                figure_title = f"{purpose_label} ({', '.join(extra)})"
+            else:
+                figure_title = purpose_label
     
     time_index = pd.Series(cospectra_df.columns)
     time_index = pd.to_datetime(time_index, format="%Y%m%d-%H%M")
@@ -969,6 +1111,9 @@ def plot_stepwise_filtering(
         sharex='col',
         sharey=False
     )
+
+    if figure_title is not None:
+        fig.suptitle(figure_title)
 
     if n_steps == 1:
         axes = axes.reshape(1, 2)

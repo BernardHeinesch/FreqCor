@@ -79,7 +79,7 @@ FREQCOR_Main
 
 - **Correction factors**
   - `FREQCOR_LUT_CF`: correction factor LUT construction.
-  - `theor_cosp_Kaimal`: theoretical reference (co)spectra.
+  - `FREQCOR_Ref_cospectrum_for_plotting`: reference (co)spectra used for plotting.
   - `FREQCOR_Sensor_Separation`: sensor-separation correction (spectral workflow).
 
 - **Quality screening**

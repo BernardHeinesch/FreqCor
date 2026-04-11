@@ -1,7 +1,7 @@
-theor\_cosp\_Kaimal.theor\_Massman
+theor\_cosp\_Kaimal.Massman\_cosp
 ==================================
 
-.. currentmodule:: theor_cosp_Kaimal
+.. currentmodule:: FREQCOR_Ref_cospectrum_for_plotting
 
-.. autofunction:: theor_Massman
+.. autofunction:: Massman_cosp
    :noindex:

@@ -1,5 +1,5 @@
-﻿FREQCOR_Ref_cospectrum_for_plotting
-=====================================
+﻿FREQCOR\_Ref\_cospectrum\_for\_plotting
+=======================================
 
 .. automodule:: FREQCOR_Ref_cospectrum_for_plotting
    

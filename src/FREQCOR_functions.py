@@ -4,7 +4,7 @@
 import numpy as np
 import pandas as pd
 import os
-from theor_cosp_Kaimal import Kaimal_cosp, theor_Massman
+from FREQCOR_Ref_cospectrum_for_plotting import Kaimal_cosp, Massman_cosp
 import scipy.stats
 from scipy.optimize import curve_fit
 
@@ -104,10 +104,6 @@ def av_Kaimal(Icos,freq,freqn,zL,A0,kf0,mu):
         values for the ideal, Kaimal and Massman cospectra
 
     """
-    #!!! Manage Massman cospectra: should it be an option in the .ini? Can it
-    # be done in every situation or could it trigger an error in certains cases?
-    # V1 Kaimal can be removed? Is V2 validated?
-    
     # Concatenate all columns of the dataframe to create a series for both the
     # ideal cospectral data and the normalised frequencies
     Icos_n = Icos.T.stack()
@@ -122,24 +118,6 @@ def av_Kaimal(Icos,freq,freqn,zL,A0,kf0,mu):
     Icos_nf = Icos_n*freq_list
     freq_n = freq_n.droplevel(level=[1])
     freq_n = freq_n.reset_index(drop=True)
-    
-    # V1 : computation of Kaimal over the whole frequency range and then 
-    # averaged over the newly created log-spaced frequency range
-    
-    # prepare the dataframes where the Kaimal cospectrum for the whole 
-    # frequency range will be stored after computation
-    # _tot = cosp/cov form
-    # _tot_f = cosp/cov*f form (where f is natural frequency)
-    # kaimal_tot = pd.Series(np.zeros(shape=freq_list.shape))
-    # kaimal_tot_f = pd.Series(np.zeros(shape=freq_list.shape))
-    
-    # for x in range(0,len(freq_list)):
-    #     # DANS KAIMAL ON FAIT /FREQ NATURELLE: Ca sort donc un cosp/cov
-    #     # SI PAR CONTRE ON VEUT SORTIR cosp/cov*freqnaturelle il faut 
-    #     # remultiplier par la freq naturelle!!
-    #     kaimal_tot_f[x] = Kaimal_cosp(freq_list[x],freq_n[x],zL[0])*freq_list[x]
-    #     kaimal_tot[x] = Kaimal_cosp(freq_list[x],freq_n[x],zL[0])
-    
 
     # # Create the full dataframe with normalised frequencies, ideal and Kaimal
     # # cospectra presented in the form cosp/cov*freq
@@ -171,9 +149,6 @@ def av_Kaimal(Icos,freq,freqn,zL,A0,kf0,mu):
     # grouped_data.columns = ['Ideal','Kaimal']
     grouped_data.columns = ['Ideal']
     
-    # V2: compute the Kaimal cosprectrum starting from the newly created log-
-    # spaced frequency range directly.
-    
     grouped_data = grouped_data.reset_index(drop=True)
     kaimal = pd.Series(np.zeros(shape=freq.shape))
     
@@ -187,7 +162,7 @@ def av_Kaimal(Icos,freq,freqn,zL,A0,kf0,mu):
     massman = pd.Series(np.zeros(shape=freq.shape))
     if not(np.isnan(A0).all()) and not(np.isnan(kf0).all()) and not(np.isnan(mu).all()):
         for m in range(len(log_bins)):
-            massman[m] = theor_Massman(freq[m],log_bins[m],zL[0],A0,kf0,mu)*freq[m]
+            massman[m] = Massman_cosp(freq[m],log_bins[m],zL[0],A0,kf0,mu)*freq[m]
     else:
         massman.loc[:]=np.nan
     grouped_data = pd.concat([grouped_data,massman.rename('Massman')],axis=1)
@@ -416,14 +391,40 @@ def write_coflut_to_csv(data_dict, gss, outputpath, run_tag=None):
     cof_file = os.path.join(outputpath, f"4_LUT_cof__{run_tag}.csv")
     if gss == 2:
         concat_keys = ['rh', 'ws']
-        columns = ['rh_mean','rh_max','unc_rhclass','ws_mean','ws_max','cof_L','unc_L','cof_G','unc_G','fn_L','uncfn_L','fn_G','uncfn_G']
+        var0 = 'rh'
+        var0_unit = '%'
     else:
         concat_keys = ['wd', 'ws']
-        columns = ['wd_mean','wd_max','unc_wdclass','ws_mean','ws_max','cof_L','unc_L','cof_G','unc_G','fn_L','uncfn_L','fn_G','uncfn_G']
+        var0 = 'wd'
+        var0_unit = 'deg'
+
+    base_columns = [
+        f'{var0}_mean ({var0_unit})',
+        f'{var0}_max ({var0_unit})',
+        f'unc_{var0}class ({var0_unit})',
+        'ws_mean (m s-1)',
+        'ws_max (m s-1)',
+        'cof_L (Hz)',
+        'unc_L_tf (Hz)',
+        'cof_G (Hz)',
+        'unc_G_tf (Hz)',
+        'fn_L (Hz)',
+        'uncfn_L (Hz)',
+        'fn_G (Hz)',
+        'uncfn_G (Hz)',
+    ]
     with open(cof_file, "w", newline="") as f:
         first_entry = True
         for key, dfs in data_dict.items():
             merged_df = pd.concat([dfs[concat_keys[0]], dfs[concat_keys[1]]], axis=1)
+
+            columns = list(base_columns)
+            if 'ws_n' in dfs:
+                n_series = dfs['ws_n']
+                n_values = n_series.to_numpy() if isinstance(n_series, pd.Series) else n_series
+                merged_df.insert(5, 'N', n_values)
+                columns.insert(5, 'N (-)')
+
             merged_df.columns = columns
             try:
                 if first_entry:
@@ -464,22 +465,30 @@ def write_cflut_to_csv(outfile,data_dict,gss):
     for key, dfs in data_dict.items():
         # Concatenate DataFrames a and b horizontally
         merged_df = pd.concat([dfs[var0], dfs['ws']], axis=1)
+        if 'ws_n' in dfs:
+            n_series = dfs['ws_n']
+            merged_df['N (-)'] = n_series.to_numpy() if isinstance(n_series, pd.Series) else n_series
         if var0 == 'wd':
             var0_unit = 'deg'
         else:
             var0_unit = '%'
-        merged_df.columns=[
+        base_cols=[
             f'{var0}_mean ({var0_unit})',
             f'{var0}_max ({var0_unit})',
             f'unc_{var0}class ({var0_unit})',
             'ws_mean (m s-1)',
             'ws_max (m s-1)',
             'CF_L (-)',
-            'unc_L (-)',
+            'unc_L_tf (-)',
+            'unc_L_sd (-)',
             'CF_G (-)',
-            'unc_G (-)',
+            'unc_G_tf (-)',
+            'unc_G_sd (-)',
             'unc_wsCFclass (m s-1)',
         ]
+        if 'ws_n' in dfs:
+            base_cols.append('N (-)')
+        merged_df.columns = base_cols
         # Write to CSV
         try:
             if first_entry:
@@ -548,7 +557,7 @@ def fit_func(freq_binned, a, b, d, PS_original):
 def fit_Aslan21(f, ideal_sp, real_sp, par_bounds, ini_par):
     """
     @author: Aslan et al. 2021
-    Translated by A. FaurÃ¨s from Matlab to Python on 21/10/2024 
+    Translated by A. Faurès from Matlab to Python on 21/10/2024 
     
     Function to fit the equation developed by Aslan et al. 2021 to any spectral
     case and dataset.

@@ -8,7 +8,7 @@ with open("requirements.txt", "r", encoding="utf-8") as fh:
 
 setup(
     name="FreqCor",
-    version="1.3",
+    version="1.4",
     author="Ariane Faurès",
     author_email="bernard.heinesch@uliege.be",
     description="A Python toolbox to compute and apply spectral/cospectral correction factors to eddy covariance fluxes",
@@ -36,7 +36,7 @@ setup(
         "FREQCOR_validate",
         "FREQCOR_VM_flag",
         "FREQCOR_write_outputs",
-        "theor_cosp_Kaimal",
+        "FREQCOR_Ref_cospectrum_for_plotting",
     ],
     package_dir={"": "src"},
     classifiers=[

@@ -5,6 +5,7 @@ Created on Tue Apr 8 2025
 Validation functions for FREQCOR configuration parameters
 """
 import os
+import glob
 import datetime
 
 def validate_config(config):
@@ -25,6 +26,23 @@ def validate_config(config):
     """
     valid = True
     errors = []
+
+    def _warn_windows_path_length(*, base_dir, sample_filenames, limit=250, margin=10):
+        if os.name != 'nt':
+            return
+        if not isinstance(base_dir, str) or not base_dir:
+            return
+        for name in sample_filenames:
+            full_path = os.path.join(base_dir, name)
+            n = len(full_path)
+            if n >= (limit - margin):
+                print(
+                    "WARNING: output_path may be too long for Windows when combined with output filenames. "
+                    "This can cause save failures (e.g. plots/CSVs not written) and lead to incomplete outputs. "
+                    "Reduce/shorten output_path to avoid this. "
+                    f"Example path length={n} (limit~{limit}): {full_path}"
+                )
+                return
     
     # Extract parameters for validation
     try:
@@ -64,9 +82,15 @@ def validate_config(config):
 
         plot_main = int(config['PROCEDURE_OPTIONS']['plot_main'])
         plot_aux = int(config['PROCEDURE_OPTIONS']['plot_aux'])
+        vitale_qc_flags = int(config['PROCEDURE_OPTIONS']['vitale_qc_flags'])
         
         # Paths
         outputpath = config['IO']['output_path']
+        input_path = config['IO']['input_path']
+        input_path_sp = config['IO']['input_path_sp']
+        flx_meteo = config['IO']['flx_meteo']
+        binned_cosp = config['IO']['binned_cosp']
+        vitale_path = config['IO']['vitale_path']
         
     except KeyError as e:
         valid = False
@@ -138,6 +162,65 @@ def validate_config(config):
         except Exception as e:
             valid = False
             errors.append(f"Failed to create output directory {outputpath}: {e}")
+
+    gas_map = {1: 'co2', 2: 'h2o', 3: 'o3', 4: 'ch4', 5: 'n2o'}
+    gas_tag = gas_map.get(gss, f'gss{gss}')
+    method_tag = 'cosp' if sps == 1 else 'sp'
+    window_tag = 'all'
+    try:
+        if 'TIME_WINDOW' in config and int(config['TIME_WINDOW'].get('enable_time_window', 0)) == 1:
+            start_d = datetime.datetime.strptime(config['TIME_WINDOW']['start_datetime'], '%Y-%m-%d %H:%M')
+            end_d = datetime.datetime.strptime(config['TIME_WINDOW']['end_datetime'], '%Y-%m-%d %H:%M')
+            window_tag = f"{start_d.strftime('%y%m%d')}-{end_d.strftime('%y%m%d')}"
+    except Exception:
+        window_tag = 'all'
+
+    _warn_windows_path_length(
+        base_dir=outputpath,
+        sample_filenames=[
+            f"4_mean_TF_all_classes__wd1__SITE__{gas_tag}__{method_tag}__{window_tag}__YYMMDDTHHMM.png",
+            f"5_CF_vs_ws__unst__SITE__{gas_tag}__{method_tag}__{window_tag}__YYMMDDTHHMM.png",
+            f"5_LUT_CF__SITE__{gas_tag}__{method_tag}__{window_tag}__YYMMDDTHHMM.csv",
+            f"7_stats__SITE__{gas_tag}__{method_tag}__{window_tag}__YYMMDDTHHMM.txt",
+        ],
+    )
+
+    # Validate input paths and expected files
+    if not os.path.isdir(input_path):
+        valid = False
+        errors.append(f"input_path does not exist or is not a directory: {input_path}")
+    else:
+        expected_flux_files = glob.glob(os.path.join(input_path, f"*{flx_meteo}*.csv"))
+        if len(expected_flux_files) == 0:
+            valid = False
+            errors.append(
+                f"No input flux/meteo CSV found in input_path='{input_path}' matching pattern '*{flx_meteo}*.csv'"
+            )
+
+    if not os.path.isdir(input_path_sp):
+        valid = False
+        errors.append(f"input_path_sp does not exist or is not a directory: {input_path_sp}")
+    else:
+        expected_binned_files = glob.glob(os.path.join(input_path_sp, f"*{binned_cosp}*"))
+        if len(expected_binned_files) == 0:
+            expected_binned_files = glob.glob(
+                os.path.join(input_path_sp, 'eddypro_binned_cospectra', f"*{binned_cosp}*")
+            )
+        if len(expected_binned_files) == 0:
+            valid = False
+            errors.append(
+                f"No binned cospectra file found in input_path_sp='{input_path_sp}' matching pattern '*{binned_cosp}*' (also checked 'eddypro_binned_cospectra/' subfolder)"
+            )
+
+    if vitale_qc_flags == 1:
+        if not os.path.isdir(vitale_path):
+            valid = False
+            errors.append(f"vitale_qc_flags=1 but vitale_path does not exist or is not a directory: {vitale_path}")
+        else:
+            vitale_csv_files = glob.glob(os.path.join(vitale_path, "*.csv"))
+            if len(vitale_csv_files) == 0:
+                valid = False
+                errors.append(f"vitale_qc_flags=1 but no CSV file found in vitale_path='{vitale_path}'")
 
     # Validate TIME_WINDOW
     if 'TIME_WINDOW' in config:

@@ -28,6 +28,14 @@ def FREQCOR_LUT_CF(Icos_CF, nspec, sts, gss, WS, Zeta, WD, meteo_df, LUT_cof,
     a LUT sorted by a first variable (wind direction for CO2 or relative humidity for
     H2O) and by wind speed classes.
 
+    CF LUT uncertainties:
+    - ``unc_*_tf``: transfer-function-related uncertainty component, computed as the
+      maximum deviation from the central CF value ("M") within each WS class.
+    - ``unc_*_sd``: within-class spread of CF values, computed as the standard
+      deviation of CF values after outlier removal.
+    Total uncertainties are not produced; users can recompute them from the component
+    uncertainties if needed.
+
     Parameters
     ----------
     Icos_CF : pandas.DataFrame
@@ -92,7 +100,6 @@ def FREQCOR_LUT_CF(Icos_CF, nspec, sts, gss, WS, Zeta, WD, meteo_df, LUT_cof,
     print('  Stability class: ' + stability[sts-1] + 'able. Computing spectral correction factors')
     cols = ['CFL_M','CFL_L','CFL_H','CFG_M','CFG_L','CFG_H']
     matCF = pd.DataFrame(np.full(shape=(nspec,len(cols)),fill_value=np.nan), index = None, columns=cols)
-    
     WSR = pd.DataFrame(np.zeros(shape=[nspec,2]))
     WSR[:] = np.nan
     if gss != 2:
@@ -109,16 +116,18 @@ def FREQCOR_LUT_CF(Icos_CF, nspec, sts, gss, WS, Zeta, WD, meteo_df, LUT_cof,
             # Selecting cut off frequency in LUT_cof: according to WD/RH and WS
             if not(gss==2): 
                 WSR.iloc[js,0],WSR.iloc[js,1]=ReadLUT(WS[js],LUT_cof,classnum,gss,WD[js])
-                cof_L=LUT_cof[int(WSR.iloc[js,1])]['ws'].iloc[int(WSR.iloc[js,0]),2]
-                unc_L=LUT_cof[int(WSR.iloc[js,1])]['ws'].iloc[int(WSR.iloc[js,0]),3]
-                cof_G=LUT_cof[int(WSR.iloc[js,1])]['ws'].iloc[int(WSR.iloc[js,0]),4]
-                unc_G=LUT_cof[int(WSR.iloc[js,1])]['ws'].iloc[int(WSR.iloc[js,0]),5]
+                ws_row = LUT_cof[int(WSR.iloc[js,1])]['ws'].iloc[int(WSR.iloc[js,0])]
+                cof_L = ws_row['cof_L']
+                unc_L_tf = ws_row['unc_L_tf']
+                cof_G = ws_row['cof_G']
+                unc_G_tf = ws_row['unc_G_tf']
             elif gss == 2: 
                 WSR.iloc[js,0],WSR.iloc[js,1]=ReadLUT(WS[js],LUT_cof,classnum,gss,RH[js])
-                cof_L=LUT_cof[int(WSR.iloc[js,1])]['ws'].iloc[int(WSR.iloc[js,0]),2]
-                unc_L=LUT_cof[int(WSR.iloc[js,1])]['ws'].iloc[int(WSR.iloc[js,0]),3]
-                cof_G=LUT_cof[int(WSR.iloc[js,1])]['ws'].iloc[int(WSR.iloc[js,0]),4]
-                unc_G=LUT_cof[int(WSR.iloc[js,1])]['ws'].iloc[int(WSR.iloc[js,0]),5]
+                ws_row = LUT_cof[int(WSR.iloc[js,1])]['ws'].iloc[int(WSR.iloc[js,0])]
+                cof_L = ws_row['cof_L']
+                unc_L_tf = ws_row['unc_L_tf']
+                cof_G = ws_row['cof_G']
+                unc_G_tf = ws_row['unc_G_tf']
                 
             if not(np.isfinite(cof_L) and np.isfinite(cof_G)):
                 matCF.iloc[js,0]=np.nan
@@ -150,27 +159,27 @@ def FREQCOR_LUT_CF(Icos_CF, nspec, sts, gss, WS, Zeta, WD, meteo_df, LUT_cof,
             if sps==1:
                 if tf_peltola ==1: 
                     TraFunL_M=(1/(1+(freq/cof_L)**2))**0.5                                 
-                    TraFunL_L=(1/(1+(freq/(cof_L+unc_L))**2))**0.5  
-                    TraFunL_H=(1/(1+(freq/(cof_L-unc_L))**2))**0.5             
+                    TraFunL_L=(1/(1+(freq/(cof_L+unc_L_tf))**2))**0.5  
+                    TraFunL_H=(1/(1+(freq/(cof_L-unc_L_tf))**2))**0.5             
                 else:
                     TraFunL_M=1/(1+(freq/cof_L)**2)                                             
-                    TraFunL_L=1/(1+(freq/(cof_L+unc_L))**2)
-                    if unc_L < cof_L:
-                        TraFunL_H=1/(1+(freq/(cof_L-unc_L))**2)              
+                    TraFunL_L=1/(1+(freq/(cof_L+unc_L_tf))**2)
+                    if unc_L_tf < cof_L:
+                        TraFunL_H=1/(1+(freq/(cof_L-unc_L_tf))**2)              
                     else:
                         TraFunL_H=1/(1+(freq/0.005))**2                
             else:   
                 TraFunL_M=(1/(1+(freq/cof_L)**2))**0.5                                 
-                TraFunL_L=(1/(1+(freq/(cof_L+unc_L))**2))**0.5  
-                TraFunL_H=(1/(1+(freq/(cof_L-unc_L))**2))**0.5            
+                TraFunL_L=(1/(1+(freq/(cof_L+unc_L_tf))**2))**0.5  
+                TraFunL_H=(1/(1+(freq/(cof_L-unc_L_tf))**2))**0.5            
             if sps==1:
                 TraFunG_M=np.exp(-np.log(2)*(freq/cof_G)**2)            
-                TraFunG_L=np.exp(-np.log(2)*(freq/(cof_G+unc_G))**2)  
-                TraFunG_H=np.exp(-np.log(2)*(freq/(cof_G-unc_G))**2)  
+                TraFunG_L=np.exp(-np.log(2)*(freq/(cof_G+unc_G_tf))**2)  
+                TraFunG_H=np.exp(-np.log(2)*(freq/(cof_G-unc_G_tf))**2)  
             else:
                 TraFunG_M=(np.exp(-np.log(2)*(freq/cof_G)**2))**0.5
-                TraFunG_L=(np.exp(-np.log(2)*(freq/(cof_G+unc_G))**2))**0.5  
-                TraFunG_H=(np.exp(-np.log(2)*(freq/(cof_G-unc_G))**2))**0.5  
+                TraFunG_L=(np.exp(-np.log(2)*(freq/(cof_G+unc_G_tf))**2))**0.5  
+                TraFunG_H=(np.exp(-np.log(2)*(freq/(cof_G-unc_G_tf))**2))**0.5  
     
             # Building of degraded cospectra          
             RcoscfL_M=Icoscf*TraFunL_M
@@ -211,14 +220,14 @@ def FREQCOR_LUT_CF(Icos_CF, nspec, sts, gss, WS, Zeta, WD, meteo_df, LUT_cof,
             CFLG_L = np.nansum(IcoscfS*df.T)/np.nansum(RcoscfG_LS*df.T)
             CFLG_H = np.nansum(IcoscfS*df.T)/np.nansum(RcoscfG_HS*df.T)
             
-            #Putting correction factors and their confidence limits in a matrix
+            # Putting correction factors and their confidence limits in a matrix
             matCF.loc[js, cols] = [CFLL_M, CFLL_L, CFLL_H, CFLG_M, CFLG_L, CFLG_H]
     
     
     # %% Building the CF look-up table
-    outlier_info={}
+    outlier_info_L = {}
+    outlier_info_G = {}
     valid_mask = np.isfinite(matCF).all(axis=1)
-    # mat_meteo_cf =  pd.concat([WS,WD,RH,matCF], axis = 1)
     mat_meteo_cf =  pd.concat([WS,WD,RH,Zeta,matCF], axis = 1)
   
     # Suppression of missing CF rows
@@ -234,7 +243,7 @@ def FREQCOR_LUT_CF(Icos_CF, nspec, sts, gss, WS, Zeta, WD, meteo_df, LUT_cof,
         LUT_CF = dict.fromkeys(li)
         all_data_cf=dict.fromkeys(li)
         
-        # WD, apply symmetry: map [180â€“360Â°] to [0â€“180Â°])
+        # WD, apply symmetry: map [180deg-360deg] to [0deg-180deg])
         mat_meteo_cf['wd_reduced'] = mat_meteo_cf['wind_dir'] % 360
         mat_meteo_cf['wd_reduced'] = mat_meteo_cf['wd_reduced'].apply(lambda wd: wd - 180 if wd > 180 else wd)
         bin_edges = np.linspace(0, 180, classnum_wd + 1)
@@ -243,9 +252,21 @@ def FREQCOR_LUT_CF(Icos_CF, nspec, sts, gss, WS, Zeta, WD, meteo_df, LUT_cof,
         
         for jc in range(1, classnum_wd + 1):
             wd_class_df = mat_meteo_cf[mat_meteo_cf['wd_bin'] == jc].copy().reset_index(drop=True)         
+            cf_cols = [
+                'ws_mean',
+                'ws_max',
+                'CF_L',
+                'unc_L_tf',
+                'unc_L_sd',
+                'CF_G',
+                'unc_G_tf',
+                'unc_G_sd',
+                'unc_wsCFclass',
+            ]
             lut_cf_temp = {
                 'wd': pd.DataFrame(),
-                'ws': pd.DataFrame(np.zeros(shape=(classnumCF, 7)))
+                'ws': pd.DataFrame(np.zeros(shape=(classnumCF, len(cf_cols))), columns=cf_cols),
+                'ws_n': pd.Series(np.full(shape=(classnumCF,), fill_value=np.nan))
             }
         
             lut_cf_temp['wd'].loc[0, 'wdmean'] = wd_class_df['wd_reduced'].mean()
@@ -259,13 +280,14 @@ def FREQCOR_LUT_CF(Icos_CF, nspec, sts, gss, WS, Zeta, WD, meteo_df, LUT_cof,
             if classize_ws < 2:
                 raise FREQCORLUTCFError('Not enough cospectra in each LUT wind speed class (within WD class) for LUT construction.')
             
-            unc1_CFL = pd.Series(np.full(shape = [classnumCF], fill_value = np.nan))
-            unc1_CFG = pd.Series(np.full(shape = [classnumCF], fill_value = np.nan))
-            unc3_CFL = pd.Series(np.full(shape = [classnumCF], fill_value = np.nan))
-            unc3_CFG = pd.Series(np.full(shape = [classnumCF], fill_value = np.nan))
+            unc_CFL_tf = pd.Series(np.full(shape=[classnumCF], fill_value=np.nan))
+            unc_CFG_tf = pd.Series(np.full(shape=[classnumCF], fill_value=np.nan))
+            unc_CFL_sd = pd.Series(np.full(shape=[classnumCF], fill_value=np.nan))
+            unc_CFG_sd = pd.Series(np.full(shape=[classnumCF], fill_value=np.nan))
             
             all_cf_ws = {
-                'ws': [],
+                'ws_l': [],
+                'ws_g': [],
                 'cf_l': [],
                 'cf_g': [],
                 'mean_cf_l': [],
@@ -281,37 +303,57 @@ def FREQCOR_LUT_CF(Icos_CF, nspec, sts, gss, WS, Zeta, WD, meteo_df, LUT_cof,
                 cf_lorentz = bin_df['CFL_M']
                 cf_gauss = bin_df['CFG_M']
             
-                cf_lorentz_clean = remove_outliers(cf_lorentz, jws, ws_values, outlier_info)
-                cf_gauss_clean = remove_outliers(cf_gauss, jws, ws_values, outlier_info)
+                class_id = f"wd{jc}_ws{jws}"
+                cf_lorentz_clean = remove_outliers(cf_lorentz, class_id, ws_values, outlier_info_L)
+                cf_gauss_clean = remove_outliers(cf_gauss, class_id, ws_values, outlier_info_G)
+
+                ws_clean = ws_values.loc[cf_lorentz_clean.index.intersection(cf_gauss_clean.index)]
+                if len(ws_clean) == 0:
+                    ws_clean = ws_values.loc[cf_lorentz_clean.index]
+                if len(ws_clean) == 0:
+                    ws_clean = ws_values.loc[cf_gauss_clean.index]
+                if len(ws_clean) == 0:
+                    ws_clean = ws_values
+
+                lut_cf_temp['ws'].loc[jws-1,'ws_mean']=np.mean(ws_clean)
+                lut_cf_temp['ws'].loc[jws-1,'ws_max']=np.max(ws_clean)            
+                lut_cf_temp['ws'].loc[jws-1,'unc_wsCFclass']=1.96*np.std(ws_clean)
+                lut_cf_temp['ws_n'].iloc[jws-1]=int(len(ws_clean))
+                lut_cf_temp['ws'].loc[jws-1,'CF_L']=np.median(cf_lorentz_clean)
+                lut_cf_temp['ws'].loc[jws-1,'CF_G']=np.median(cf_gauss_clean)
                 
-                lut_cf_temp['ws'].loc[jws-1,0]=np.mean(ws_values)
-                lut_cf_temp['ws'].loc[jws-1,1]=np.max(ws_values)            
-                lut_cf_temp['ws'].loc[jws-1,6]=1.96*np.std(ws_values)
-                lut_cf_temp['ws'].loc[jws-1,2]=np.median(cf_lorentz_clean)
-                lut_cf_temp['ws'].loc[jws-1,4]=np.median(cf_gauss_clean)
-                # lut_cf_temp['ws'].loc[jws-1,2]=np.mean(cf_lorentz_clean)
-                # lut_cf_temp['ws'].loc[jws-1,4]=np.mean(cf_gauss_clean)  
-                
-                # !!! Update uncertainty estimation
                 # uncertainty due to transfer function
-                unc1_CFL[jws-1]=np.mean(bin_df['CFL_M'])-np.mean(bin_df['CFL_L'])  
-                unc1_CFG[jws-1]=(np.mean(bin_df['CFG_H'])-np.mean(bin_df['CFG_L']))/2   
-                # uncertainty due to cospectra shape                                                       
-                unc3_CFL[jws-1]=1.96*np.std(cf_lorentz)     
-                unc3_CFG[jws-1]=1.96*np.std(cf_gauss) 
-                # global uncertainty
-                lut_cf_temp['ws'].loc[jws-1,5]=(unc1_CFG[jws-1]**2+unc3_CFG[jws-1]**2)**0.5  
-                # Temporary: create uncertainty for Lorentzian data the same way
-                # for CO2 above it's done differently-has to be restructured everywhere
-                # and documented
-                lut_cf_temp['ws'].loc[jws-1,3]=(unc1_CFL[jws-1]**2+unc3_CFL[jws-1]**2)**0.5 
+                mean_CFL_M = np.mean(bin_df['CFL_M'])
+                mean_CFL_L = np.mean(bin_df['CFL_L'])
+                mean_CFL_H = np.mean(bin_df['CFL_H'])
+                unc_CFL_tf[jws-1] = max(abs(mean_CFL_M - mean_CFL_L), abs(mean_CFL_H - mean_CFL_M))
+
+                mean_CFG_M = np.mean(bin_df['CFG_M'])
+                mean_CFG_L = np.mean(bin_df['CFG_L'])
+                mean_CFG_H = np.mean(bin_df['CFG_H'])
+                unc_CFG_tf[jws-1] = max(abs(mean_CFG_M - mean_CFG_L), abs(mean_CFG_H - mean_CFG_M))
+                
+                unc_CFL_sd[jws-1] = np.std(cf_lorentz_clean)
+                unc_CFG_sd[jws-1] = np.std(cf_gauss_clean)
+
+                lut_cf_temp['ws'].loc[jws-1,'unc_L_tf']=unc_CFL_tf[jws-1]
+                lut_cf_temp['ws'].loc[jws-1,'unc_L_sd']=unc_CFL_sd[jws-1]
+                lut_cf_temp['ws'].loc[jws-1,'unc_G_tf']=unc_CFG_tf[jws-1]
+                lut_cf_temp['ws'].loc[jws-1,'unc_G_sd']=unc_CFG_sd[jws-1]
+
+                all_cf_ws['ws_l'].append(ws_values.loc[cf_lorentz_clean.index])
+                all_cf_ws['cf_l'].append(cf_lorentz_clean)
+                all_cf_ws['ws_g'].append(ws_values.loc[cf_gauss_clean.index])
+                all_cf_ws['cf_g'].append(cf_gauss_clean)
             
-            all_cf_ws['ws'].append(matsortws.loc[:,'wind_speed'])
-            all_cf_ws['cf_l'].append(matsortws.loc[:,'CFL_M'])
-            all_cf_ws['cf_g'].append(matsortws.loc[:,'CFG_M'])
-            all_cf_ws['mean_cf_l'].append(lut_cf_temp['ws'].loc[:,2])
-            all_cf_ws['mean_cf_g'].append(lut_cf_temp['ws'].loc[:,4])
-            all_cf_ws['mean_ws'].append(lut_cf_temp['ws'].loc[:,0])
+            all_cf_ws['ws_l'] = pd.concat(all_cf_ws['ws_l']).reset_index(drop=True) if len(all_cf_ws['ws_l']) else pd.Series(dtype=float)
+            all_cf_ws['cf_l'] = pd.concat(all_cf_ws['cf_l']).reset_index(drop=True) if len(all_cf_ws['cf_l']) else pd.Series(dtype=float)
+            all_cf_ws['ws_g'] = pd.concat(all_cf_ws['ws_g']).reset_index(drop=True) if len(all_cf_ws['ws_g']) else pd.Series(dtype=float)
+            all_cf_ws['cf_g'] = pd.concat(all_cf_ws['cf_g']).reset_index(drop=True) if len(all_cf_ws['cf_g']) else pd.Series(dtype=float)
+
+            all_cf_ws['mean_cf_l'].append(lut_cf_temp['ws'].loc[:,'CF_L'])
+            all_cf_ws['mean_cf_g'].append(lut_cf_temp['ws'].loc[:,'CF_G'])
+            all_cf_ws['mean_ws'].append(lut_cf_temp['ws'].loc[:,'ws_mean'])
             
             all_data_cf[jc]=all_cf_ws
             LUT_CF[jc]=lut_cf_temp
@@ -326,9 +368,21 @@ def FREQCOR_LUT_CF(Icos_CF, nspec, sts, gss, WS, Zeta, WD, meteo_df, LUT_cof,
         bins_rh = np.array_split(mat_meteo_cf.index, classnum_rh)
         for jc, bin_idx in enumerate(bins_rh, 1):
             bin_rh = mat_meteo_cf.loc[bin_idx]
+            cf_cols = [
+                'ws_mean',
+                'ws_max',
+                'CF_L',
+                'unc_L_tf',
+                'unc_L_sd',
+                'CF_G',
+                'unc_G_tf',
+                'unc_G_sd',
+                'unc_wsCFclass',
+            ]
             lut_cf_temp={
                 'rh':pd.DataFrame(),
-                'ws':pd.DataFrame(np.zeros(shape = (classnumCF,7)))
+                'ws':pd.DataFrame(np.zeros(shape = (classnumCF,len(cf_cols))), columns=cf_cols),
+                'ws_n': pd.Series(np.full(shape=(classnumCF,), fill_value=np.nan))
                 }
             
             lut_cf_temp['rh'].loc[0,'rhmean']=np.mean(bin_rh['RH'])           
@@ -342,13 +396,14 @@ def FREQCOR_LUT_CF(Icos_CF, nspec, sts, gss, WS, Zeta, WD, meteo_df, LUT_cof,
             if classize_ws < 2:
                 raise FREQCORLUTCFError('Not enough cospectra in each LUT wind speed class (within RH class) for LUT construction.')
             
-            unc1_CFL = pd.Series(np.full(shape = [classnumCF], fill_value = np.nan))
-            unc1_CFG = pd.Series(np.full(shape = [classnumCF], fill_value = np.nan))
-            unc3_CFL = pd.Series(np.full(shape = [classnumCF], fill_value = np.nan))
-            unc3_CFG = pd.Series(np.full(shape = [classnumCF], fill_value = np.nan))
+            unc_CFL_tf = pd.Series(np.full(shape=[classnumCF], fill_value=np.nan))
+            unc_CFG_tf = pd.Series(np.full(shape=[classnumCF], fill_value=np.nan))
+            unc_CFL_sd = pd.Series(np.full(shape=[classnumCF], fill_value=np.nan))
+            unc_CFG_sd = pd.Series(np.full(shape=[classnumCF], fill_value=np.nan))
             
             all_cf_ws = {
-                'ws': [],
+                'ws_l': [],
+                'ws_g': [],
                 'cf_l': [],
                 'cf_g': [],
                 'mean_cf_l': [],
@@ -363,37 +418,58 @@ def FREQCOR_LUT_CF(Icos_CF, nspec, sts, gss, WS, Zeta, WD, meteo_df, LUT_cof,
                 cf_lorentz = bin_df['CFL_M']
                 cf_gauss = bin_df['CFG_M']
            
-                cf_lorentz_clean = remove_outliers(cf_lorentz, jws, ws_values, outlier_info)
-                cf_gauss_clean = remove_outliers(cf_gauss, jws, ws_values, outlier_info)
+                class_id = f"rh{jc}_ws{jws}"
+                cf_lorentz_clean = remove_outliers(cf_lorentz, class_id, ws_values, outlier_info_L)
+                cf_gauss_clean = remove_outliers(cf_gauss, class_id, ws_values, outlier_info_G)
+
+                ws_clean = ws_values.loc[cf_lorentz_clean.index.intersection(cf_gauss_clean.index)]
+                if len(ws_clean) == 0:
+                    ws_clean = ws_values.loc[cf_lorentz_clean.index]
+                if len(ws_clean) == 0:
+                    ws_clean = ws_values.loc[cf_gauss_clean.index]
+                if len(ws_clean) == 0:
+                    ws_clean = ws_values
+
                 
-                lut_cf_temp['ws'].loc[jws-1,0]=np.mean(ws_values)            
-                lut_cf_temp['ws'].loc[jws-1,1]=np.max(ws_values)             
-                lut_cf_temp['ws'].loc[jws-1,6]=1.96*np.std(ws_values)
-                lut_cf_temp['ws'].loc[jws-1,2]=np.median(cf_lorentz_clean)
-                lut_cf_temp['ws'].loc[jws-1,4]=np.median(cf_gauss_clean) 
-                # lut_cf_temp['ws'].loc[jws-1,2]=np.mean(cf_lorentz_clean) 
-                # lut_cf_temp['ws'].loc[jws-1,4]=np.mean(cf_gauss_clean)  
+                lut_cf_temp['ws'].loc[jws-1,'ws_mean']=np.mean(ws_clean)            
+                lut_cf_temp['ws'].loc[jws-1,'ws_max']=np.max(ws_clean)             
+                lut_cf_temp['ws'].loc[jws-1,'unc_wsCFclass']=1.96*np.std(ws_clean)
+                lut_cf_temp['ws_n'].iloc[jws-1]=int(len(ws_clean))
+                lut_cf_temp['ws'].loc[jws-1,'CF_L']=np.median(cf_lorentz_clean)
+                lut_cf_temp['ws'].loc[jws-1,'CF_G']=np.median(cf_gauss_clean) 
                
-                # !!! Update uncertainty estimation
                 # uncertainty due to transfer function
-                unc1_CFL[jws-1]=np.mean(bin_df['CFL_M'])-np.mean(bin_df['CFL_L'])  
-                unc1_CFG[jws-1]=(np.mean(bin_df['CFG_H'])-np.mean(bin_df['CFG_L']))/2   
-                # uncertainty due to cospectra shape                                                         
-                unc3_CFL[jws-1]=1.96*np.std(cf_lorentz)       
-                unc3_CFG[jws-1]=1.96*np.std(cf_gauss)     
-                # global uncertainty
-                lut_cf_temp['ws'].loc[jws-1,5]=(unc1_CFG[jws-1]**2+unc3_CFG[jws-1]**2)**0.5  
-                # Temporary: create uncertainty for Lorentzian data the same way
-                # for CO2 above it's done differently-has to be restructured everywhere
-                # and documented
-                lut_cf_temp['ws'].loc[jws-1,3]=(unc1_CFL[jws-1]**2+unc3_CFL[jws-1]**2)**0.5    
+                mean_CFL_M = np.mean(bin_df['CFL_M'])
+                mean_CFL_L = np.mean(bin_df['CFL_L'])
+                mean_CFL_H = np.mean(bin_df['CFL_H'])
+                unc_CFL_tf[jws-1] = max(abs(mean_CFL_M - mean_CFL_L), abs(mean_CFL_H - mean_CFL_M))
+
+                mean_CFG_M = np.mean(bin_df['CFG_M'])
+                mean_CFG_L = np.mean(bin_df['CFG_L'])
+                mean_CFG_H = np.mean(bin_df['CFG_H'])
+                unc_CFG_tf[jws-1] = max(abs(mean_CFG_M - mean_CFG_L), abs(mean_CFG_H - mean_CFG_M))
+
+                unc_CFL_sd[jws-1] = np.std(cf_lorentz_clean)
+                unc_CFG_sd[jws-1] = np.std(cf_gauss_clean)
+
+                lut_cf_temp['ws'].loc[jws-1,'unc_L_tf']=unc_CFL_tf[jws-1]
+                lut_cf_temp['ws'].loc[jws-1,'unc_L_sd']=unc_CFL_sd[jws-1]
+                lut_cf_temp['ws'].loc[jws-1,'unc_G_tf']=unc_CFG_tf[jws-1]
+                lut_cf_temp['ws'].loc[jws-1,'unc_G_sd']=unc_CFG_sd[jws-1]
+
+                all_cf_ws['ws_l'].append(ws_values.loc[cf_lorentz_clean.index])
+                all_cf_ws['cf_l'].append(cf_lorentz_clean)
+                all_cf_ws['ws_g'].append(ws_values.loc[cf_gauss_clean.index])
+                all_cf_ws['cf_g'].append(cf_gauss_clean)
                
-            all_cf_ws['ws'].append(matsortws.loc[:,'wind_speed'])
-            all_cf_ws['cf_l'].append(matsortws.loc[:,'CFL_M'])
-            all_cf_ws['cf_g'].append(matsortws.loc[:,'CFG_M'])
-            all_cf_ws['mean_cf_l'].append(lut_cf_temp['ws'].loc[:,2])
-            all_cf_ws['mean_cf_g'].append(lut_cf_temp['ws'].loc[:,4])
-            all_cf_ws['mean_ws'].append(lut_cf_temp['ws'].loc[:,0])
+            all_cf_ws['ws_l'] = pd.concat(all_cf_ws['ws_l']).reset_index(drop=True) if len(all_cf_ws['ws_l']) else pd.Series(dtype=float)
+            all_cf_ws['cf_l'] = pd.concat(all_cf_ws['cf_l']).reset_index(drop=True) if len(all_cf_ws['cf_l']) else pd.Series(dtype=float)
+            all_cf_ws['ws_g'] = pd.concat(all_cf_ws['ws_g']).reset_index(drop=True) if len(all_cf_ws['ws_g']) else pd.Series(dtype=float)
+            all_cf_ws['cf_g'] = pd.concat(all_cf_ws['cf_g']).reset_index(drop=True) if len(all_cf_ws['cf_g']) else pd.Series(dtype=float)
+
+            all_cf_ws['mean_cf_l'].append(lut_cf_temp['ws'].loc[:,'CF_L'])
+            all_cf_ws['mean_cf_g'].append(lut_cf_temp['ws'].loc[:,'CF_G'])
+            all_cf_ws['mean_ws'].append(lut_cf_temp['ws'].loc[:,'ws_mean'])
             
             all_data_cf[jc]=all_cf_ws
             LUT_CF[jc]=lut_cf_temp
@@ -459,7 +535,7 @@ def FREQCOR_LUT_CF(Icos_CF, nspec, sts, gss, WS, Zeta, WD, meteo_df, LUT_cof,
                 plt.tight_layout()
 
                 if plot[3] == 1:
-                    file_tag = f"5_av_kaimal_massman__{run_suffix}"
+                    file_tag = f"5_comp_reference_cospectra__{run_suffix}"
                     plt.savefig(outputpath + '/' + file_tag + '.png')
                     plt.close()
                 else:
@@ -478,8 +554,13 @@ def FREQCOR_LUT_CF(Icos_CF, nspec, sts, gss, WS, Zeta, WD, meteo_df, LUT_cof,
                        str(classize_ws)+ '\n')
 
         # Write outlier removal details
-        file.write('\nOutliers removed per wind class:\n')
-        for class_id, info in outlier_info.items():
+        file.write('\nOutliers removed per wind class (Lorentz):\n')
+        for class_id, info in outlier_info_L.items():
+            file.write(f"Wind class {class_id} (range {info['wind_speed_range'][0]:.2f}-{info['wind_speed_range'][1]:.2f} m/s):\n")
+            file.write(f"  Removed values: {info['removed_outliers']}\n")
+
+        file.write('\nOutliers removed per wind class (Gauss):\n')
+        for class_id, info in outlier_info_G.items():
             file.write(f"Wind class {class_id} (range {info['wind_speed_range'][0]:.2f}-{info['wind_speed_range'][1]:.2f} m/s):\n")
             file.write(f"  Removed values: {info['removed_outliers']}\n")
        

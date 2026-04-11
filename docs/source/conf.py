@@ -11,7 +11,7 @@ sys.path.insert(0, _SRC)
 
 project = 'FREQCOR'
 author = 'FREQCOR contributors'
-release = '1.3'
+release = '1.4'
 
 # -- General configuration ---------------------------------------------------
 

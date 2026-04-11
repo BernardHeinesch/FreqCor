@@ -60,7 +60,7 @@ def FREQCOR_Sel_general(Icon_raw, Rcon_raw, Icosp_raw, meteo_df, WS, WD,
     wdmin = float(config['USER_LIMITS']['wdmin'])
     gss = int(config['PROCEDURE_OPTIONS']['gss'])
     
-    # Convert negative wind directions to 0-360Â° range
+    # Convert negative wind directions to 0-360° range
     if wdmin < 0:
         wdmin = wdmin + 360
     if wdmax < 0:

@@ -10,6 +10,22 @@ import webbrowser
 from pathlib import Path
 
 
+def _rmtree_onerror(func, path, exc_info):
+    """Retry removing read-only files/dirs on Windows.
+
+    Sphinx sometimes leaves read-only files in the build directory; on Windows this
+    can cause shutil.rmtree to fail with PermissionError.
+    """
+    try:
+        import os
+        import stat
+
+        os.chmod(path, stat.S_IWRITE)
+        func(path)
+    except Exception:
+        raise
+
+
 def build_docs():
     """Build the Sphinx documentation."""
     docs_dir = Path(__file__).parent / 'docs'
@@ -17,14 +33,27 @@ def build_docs():
 
     if build_dir.exists():
         import shutil
-        shutil.rmtree(build_dir)
+        shutil.rmtree(build_dir, onerror=_rmtree_onerror)
 
     build_dir.parent.mkdir(parents=True, exist_ok=True)
 
-    if sys.platform.startswith('win'):
-        result = subprocess.run(['cmd', '/c', 'make.bat', 'html'], cwd=docs_dir)
-    else:
-        result = subprocess.run(['make', 'html'], cwd=docs_dir)
+    source_dir = docs_dir / 'source'
+    build_root = docs_dir / 'build'
+
+    # Use the current Python interpreter to run Sphinx. This avoids relying on a
+    # sphinx-build executable being on PATH (common issue on Windows).
+    result = subprocess.run(
+        [
+            sys.executable,
+            '-m',
+            'sphinx',
+            '-M',
+            'html',
+            str(source_dir),
+            str(build_root),
+        ],
+        cwd=docs_dir,
+    )
 
     if result.returncode != 0:
         return False

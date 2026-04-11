@@ -156,7 +156,7 @@ def FREQCOR_Sel_cof(Icon_sel, Rcon_sel, freq, gss, sps, meteo_df, Hlim,
              flag_mask,
              mask_i & mask_r,
              iqr_mask]
-    step_names = ['Flux thresholds',
+    step_names = ['Flux thresholds (H and gas combined)',
                   'VM and FF flags',
                   'Absolute (co)spectral value',
                   'IQR over frequency band']
@@ -167,7 +167,7 @@ def FREQCOR_Sel_cof(Icon_sel, Rcon_sel, freq, gss, sps, meteo_df, Hlim,
         run_suffix = run_tag
         
         step_plot_info = {
-            "Flux thresholds": {
+            "Flux thresholds (H and gas combined)": {
                 "flux_limits": [Hlim, Hlim_max]
             },
             "Absolute (co)spectral value": {
@@ -194,7 +194,7 @@ def FREQCOR_Sel_cof(Icon_sel, Rcon_sel, freq, gss, sps, meteo_df, Hlim,
         )
         
         step_plot_info = {
-            "Flux thresholds": {
+            "Flux thresholds (H and gas combined)": {
                 "flux_limits": [Fclim, Fclim_max]
             },
             "Absolute (co)spectral value": {

@@ -60,7 +60,7 @@ def FREQCOR_cof(Icon,Rcon,jtmin_hz,jtmax_hz,varclim,freq, freqn,
         ``[x, y]`` vectors used for the fit (frequency and transfer function samples).
     cofmat : pandas.Series
         Cut-off frequencies and uncertainties with keys:
-        ``'cof_L', 'unc_L', 'cof_G', 'unc_G'``.
+        ``'cof_L', 'unc_L_tf', 'cof_G', 'unc_G_tf'``.
     fnmat : pandas.Series
         Normalization factors and uncertainties with keys:
         ``'fn_L', 'uncfn_L', 'fn_G', 'uncfn_G'``.
@@ -91,7 +91,7 @@ def FREQCOR_cof(Icon,Rcon,jtmin_hz,jtmax_hz,varclim,freq, freqn,
     tfmax = np.argmin(differences)
     
 #%% Variables initialisation   
-    cofmat = pd.Series(index=['cof_L', 'unc_L', 'cof_G', 'unc_G'], dtype=float)
+    cofmat = pd.Series(index=['cof_L', 'unc_L_tf', 'cof_G', 'unc_G_tf'], dtype=float)
     fnmat = pd.Series(index=['fn_L', 'uncfn_L', 'fn_G', 'uncfn_G'], dtype=float)
 #%% Transfer function computation
     # Quality check of transfer function
@@ -132,7 +132,7 @@ def FREQCOR_cof(Icon,Rcon,jtmin_hz,jtmax_hz,varclim,freq, freqn,
         cofmat_full = pd.DataFrame(
             np.nan,
             index=hh_names_list,
-            columns=['cof_L', 'unc_L', 'cof_G', 'unc_G']
+            columns=['cof_L', 'unc_L_tf', 'cof_G', 'unc_G_tf']
         )
         fnmat_full = pd.DataFrame(
             np.nan,
@@ -141,7 +141,7 @@ def FREQCOR_cof(Icon,Rcon,jtmin_hz,jtmax_hz,varclim,freq, freqn,
         )
         
         for i, hh_name in enumerate(trafun.columns):
-            cofmat_i = pd.Series(index=['cof_L', 'unc_L', 'cof_G', 'unc_G'], dtype=float)
+            cofmat_i = pd.Series(index=['cof_L', 'unc_L_tf', 'cof_G', 'unc_G_tf'], dtype=float)
             fnmat_i = pd.Series(index=['fn_L', 'uncfn_L', 'fn_G', 'uncfn_G'], dtype=float)
             
             x=(freq.iloc[tfmin:tfmax+1]).reset_index(drop = True)
@@ -216,8 +216,8 @@ def FREQCOR_cof(Icon,Rcon,jtmin_hz,jtmax_hz,varclim,freq, freqn,
             
         # Remove bad quality fit results and missing values
         final_valid_mask = (
-            (cofmat_full['unc_L'] < 1) &
-            (cofmat_full['unc_G'] < 1) &
+            (cofmat_full['unc_L_tf'] < 1) &
+            (cofmat_full['unc_G_tf'] < 1) &
             cofmat_full.notna().all(axis=1)
             )
         
@@ -278,7 +278,7 @@ def FREQCOR_cof(Icon,Rcon,jtmin_hz,jtmax_hz,varclim,freq, freqn,
                 
             
             cofmat['cof_L'] = cof
-            cofmat['unc_L'] = perr
+            cofmat['unc_L_tf'] = perr
             fnmat['fn_L'] = fn
             fnmat['uncfn_L'] = fnerr
             
@@ -289,7 +289,7 @@ def FREQCOR_cof(Icon,Rcon,jtmin_hz,jtmax_hz,varclim,freq, freqn,
             fnerr = errs[1]
             
             cofmat['cof_G'] = cof  
-            cofmat['unc_G'] = perr
+            cofmat['unc_G_tf'] = perr
             fnmat['fn_G'] = fn
             fnmat['uncfn_G'] = fnerr
         

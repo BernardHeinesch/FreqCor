@@ -27,7 +27,7 @@ This section contains the detailed API documentation for FREQCOR.
    FREQCOR_cof
    FREQCOR_VM_flag
    FREQCOR_Sensor_Separation
-   theor_cosp_Kaimal
+   FREQCOR_Ref_cospectrum_for_plotting
    FREQCOR_plot
 ```
 

@@ -87,10 +87,10 @@ def FREQCOR_LUT_cof(sps, gss, classnum_first, classnum_ws, Icon_cof, Rcon_cof, W
     
     # Initialisation mean (co)spectra dataframe which will be saved to csv file
     mean_cosp=pd.DataFrame(index=freq)
-    mean_cosp.index.name="Nat. freq."
+    mean_cosp.index.name="Nat. freq. (Hz)"
     # column names basis for saved file (x being the general scalar)
-    if sps == 1: cn = ['cosp(wt)','cosp(wx)'] 
-    else: cn = ['sp(t)','sp(cx)'] 
+    if sps == 1: cn = ['cosp(wt) (-)','cosp(wx) (-)'] 
+    else: cn = ['sp(t) (-)','sp(cx) (-)'] 
     first_key = Rcon_cof.keys()[0]
     last_key = Rcon_cof.keys()[-1]
     start_date = first_key[:8]  
@@ -130,7 +130,7 @@ def FREQCOR_LUT_cof(sps, gss, classnum_first, classnum_ws, Icon_cof, Rcon_cof, W
     all_cols = list(metcon.columns) + ideal_cols + real_cols
     matsort = pd.concat([metcon,Icon_cof.T,Rcon_cof.T],axis=1)
     matsort.columns = all_cols
-    cof_cols = ['ws_mean','ws_max','cof_L','unc_L','cof_G','unc_G','fn_L','uncfn_L','fn_G','uncfn_G']
+    cof_cols = ['ws_mean','ws_max','cof_L','unc_L_tf','cof_G','unc_G_tf','fn_L','uncfn_L','fn_G','uncfn_G']
     
     if not(gss==2):
         li = list(np.linspace(1, classnum_first, classnum_first, dtype=int))
@@ -165,6 +165,10 @@ def FREQCOR_LUT_cof(sps, gss, classnum_first, classnum_ws, Icon_cof, Rcon_cof, W
                 'original_trafun': [],
                 'original_freq': [],
                 'ws': [],
+                'ws_min': [],
+                'ws_max': [],
+                'parent_range': None,
+                'parent_n': None,
                 'num_classes': classnum_ws
             }
                 
@@ -173,6 +177,10 @@ def FREQCOR_LUT_cof(sps, gss, classnum_first, classnum_ws, Icon_cof, Rcon_cof, W
                 'Rcosv': [],
                 'Icosv': [],
                 'ws': [],
+                'ws_min': [],
+                'ws_max': [],
+                'parent_range': None,
+                'parent_n': None,
                 'zL': zL,
                 'num_classes': classnum_ws
             }
@@ -180,6 +188,10 @@ def FREQCOR_LUT_cof(sps, gss, classnum_first, classnum_ws, Icon_cof, Rcon_cof, W
             denoising = {}
             
             wd_class_df = matsort[matsort['wd_bin'] == jc].copy().reset_index(drop=True)
+            all_tf_data['parent_range'] = (float(wd_class_df['wd_reduced'].min()), float(wd_class_df['wd_reduced'].max()))
+            all_tf_data['parent_n'] = int(len(wd_class_df))
+            all_cosp_data['parent_range'] = all_tf_data['parent_range']
+            all_cosp_data['parent_n'] = all_tf_data['parent_n']
             sizemat_wd = len(wd_class_df)
             classizews = int(np.floor(sizemat_wd / classnum_ws))
             if classizews < 2:
@@ -188,7 +200,8 @@ def FREQCOR_LUT_cof(sps, gss, classnum_first, classnum_ws, Icon_cof, Rcon_cof, W
         
             lut_cof_temp = {
                 'wd': pd.DataFrame(),
-                'ws': pd.DataFrame(np.zeros(shape=(classnum_ws, len(cof_cols))), columns=cof_cols)
+                'ws': pd.DataFrame(np.zeros(shape=(classnum_ws, len(cof_cols))), columns=cof_cols),
+                'ws_n': pd.Series(np.full(shape=(classnum_ws,), fill_value=np.nan))
             }
         
             lut_cof_temp['wd'].loc[0, 'wdmean'] = wd_class_df['wd_reduced'].mean()
@@ -217,10 +230,11 @@ def FREQCOR_LUT_cof(sps, gss, classnum_first, classnum_ws, Icon_cof, Rcon_cof, W
 
                 lut_cof_temp['ws'].loc[jws - 1, 'ws_mean'] = ws.mean()
                 lut_cof_temp['ws'].loc[jws - 1, 'ws_max'] = ws.max()
+                lut_cof_temp['ws_n'].iloc[jws - 1] = int(len(ws))
                 lut_cof_temp['ws'].loc[jws - 1, 'cof_L'] = cofmat['cof_L']
-                lut_cof_temp['ws'].loc[jws - 1, 'unc_L'] = cofmat['unc_L']
+                lut_cof_temp['ws'].loc[jws - 1, 'unc_L_tf'] = cofmat['unc_L_tf']
                 lut_cof_temp['ws'].loc[jws - 1, 'cof_G'] = cofmat['cof_G']
-                lut_cof_temp['ws'].loc[jws - 1, 'unc_G'] = cofmat['unc_G']
+                lut_cof_temp['ws'].loc[jws - 1, 'unc_G_tf'] = cofmat['unc_G_tf']
                 lut_cof_temp['ws'].loc[jws - 1, 'fn_L'] = fnmat['fn_L']
                 lut_cof_temp['ws'].loc[jws - 1, 'uncfn_L'] = fnmat['uncfn_L']
                 lut_cof_temp['ws'].loc[jws - 1, 'fn_G'] = fnmat['fn_G']
@@ -237,11 +251,15 @@ def FREQCOR_LUT_cof(sps, gss, classnum_first, classnum_ws, Icon_cof, Rcon_cof, W
                 all_tf_data['cofmat'].append(cofmat)
                 all_tf_data['fnmat'].append(fnmat)
                 all_tf_data['ws'].append(ws.mean())
+                all_tf_data['ws_min'].append(float(ws.min()))
+                all_tf_data['ws_max'].append(float(ws.max()))
                 all_tf_data['original_trafun'].append(trafun)
                 all_tf_data['original_freq'].append(freq)
                 all_cosp_data['Rcosv'].append(Rcosv)
                 all_cosp_data['Icosv'].append(Icosv)
                 all_cosp_data['ws'].append(ws.mean())
+                all_cosp_data['ws_min'].append(float(ws.min()))
+                all_cosp_data['ws_max'].append(float(ws.max()))
                 
             LUT_cof[jc] = lut_cof_temp
         
@@ -253,11 +271,11 @@ def FREQCOR_LUT_cof(sps, gss, classnum_first, classnum_ws, Icon_cof, Rcon_cof, W
                 if sps == 1 and tf_peltola==1:
                     fqplt.plot_TF_unified(fun_Lorentz_peltola, fun_Gauss, None, None, None,
                                         denoising, plot, outputpath, norm_range, None, jc, 
-                                        gas_type='co2', all_classes_data=all_tf_data, file_tag=f"4_mean_TF_all_classes__wd{jc:0{jc_pad}d}__{run_suffix}")
+                                        gas_type='co2', all_classes_data=all_tf_data, file_tag=f"4_mean_TF_all_classes__wd{jc:0{jc_pad}d}__{run_suffix}", sps=sps)
                 else:
                     fqplt.plot_TF_unified(fun_Lorentz, fun_Gauss, None, None, None,
                                         denoising, plot, outputpath, norm_range, None, jc, 
-                                        gas_type='co2', all_classes_data=all_tf_data, file_tag=f"4_mean_TF_all_classes__wd{jc:0{jc_pad}d}__{run_suffix}")
+                                        gas_type='co2', all_classes_data=all_tf_data, file_tag=f"4_mean_TF_all_classes__wd{jc:0{jc_pad}d}__{run_suffix}", sps=sps)
                 
                 fqplt.plot_cosp_unified(freq, None, None, None, denoising, zL, sps,
                                           None, jc, plot, outputpath, 'co2',
@@ -294,7 +312,8 @@ def FREQCOR_LUT_cof(sps, gss, classnum_first, classnum_ws, Icon_cof, Rcon_cof, W
         for jc, bin_rh in enumerate(rh_bins, 1):
             lut_cof_temp={
                 'rh':pd.DataFrame(),
-                'ws': pd.DataFrame(np.zeros(shape=(classnum_ws, len(cof_cols))), columns=cof_cols)
+                'ws': pd.DataFrame(np.zeros(shape=(classnum_ws, len(cof_cols))), columns=cof_cols),
+                'ws_n': pd.Series(np.full(shape=(classnum_ws,), fill_value=np.nan))
             }
             
             all_tf_data = {
@@ -305,6 +324,10 @@ def FREQCOR_LUT_cof(sps, gss, classnum_first, classnum_ws, Icon_cof, Rcon_cof, W
                 'original_trafun': [],
                 'original_freq': [],
                 'ws': [],
+                'ws_min': [],
+                'ws_max': [],
+                'parent_range': None,
+                'parent_n': None,
                 'num_classes': classnum_ws
             }
             
@@ -313,11 +336,20 @@ def FREQCOR_LUT_cof(sps, gss, classnum_first, classnum_ws, Icon_cof, Rcon_cof, W
                 'Rcosv': [],
                 'Icosv': [],
                 'ws': [],
+                'ws_min': [],
+                'ws_max': [],
+                'parent_range': None,
+                'parent_n': None,
                 'zL': zL,
                 'num_classes': classnum_ws
             }
             
             denoising = {}
+
+            all_tf_data['parent_range'] = (float(bin_rh['RH'].min()), float(bin_rh['RH'].max()))
+            all_tf_data['parent_n'] = int(len(bin_rh))
+            all_cosp_data['parent_range'] = all_tf_data['parent_range']
+            all_cosp_data['parent_n'] = all_tf_data['parent_n']
             
             lut_cof_temp['rh'].loc[0,'rhmean']=np.mean(bin_rh['RH'])             
             lut_cof_temp['rh'].loc[0,'rhmax']=np.max(bin_rh['RH'])             
@@ -344,10 +376,11 @@ def FREQCOR_LUT_cof(sps, gss, classnum_first, classnum_ws, Icon_cof, Rcon_cof, W
 
                 lut_cof_temp['ws'].loc[jws - 1, 'ws_mean'] = ws.mean()
                 lut_cof_temp['ws'].loc[jws - 1, 'ws_max'] = ws.max()
+                lut_cof_temp['ws_n'].iloc[jws - 1] = int(len(ws))
                 lut_cof_temp['ws'].loc[jws - 1, 'cof_L'] = cofmat['cof_L']
-                lut_cof_temp['ws'].loc[jws - 1, 'unc_L'] = cofmat['unc_L']
+                lut_cof_temp['ws'].loc[jws - 1, 'unc_L_tf'] = cofmat['unc_L_tf']
                 lut_cof_temp['ws'].loc[jws - 1, 'cof_G'] = cofmat['cof_G']
-                lut_cof_temp['ws'].loc[jws - 1, 'unc_G'] = cofmat['unc_G']
+                lut_cof_temp['ws'].loc[jws - 1, 'unc_G_tf'] = cofmat['unc_G_tf']
                 lut_cof_temp['ws'].loc[jws - 1, 'fn_L'] = fnmat['fn_L']
                 lut_cof_temp['ws'].loc[jws - 1, 'uncfn_L'] = fnmat['uncfn_L']
                 lut_cof_temp['ws'].loc[jws - 1, 'fn_G'] = fnmat['fn_G']
@@ -366,11 +399,15 @@ def FREQCOR_LUT_cof(sps, gss, classnum_first, classnum_ws, Icon_cof, Rcon_cof, W
                 all_tf_data['cofmat'].append(cofmat)
                 all_tf_data['fnmat'].append(fnmat)
                 all_tf_data['ws'].append(ws.mean())
+                all_tf_data['ws_min'].append(float(ws.min()))
+                all_tf_data['ws_max'].append(float(ws.max()))
                 all_tf_data['original_trafun'].append(trafun)
                 all_tf_data['original_freq'].append(freq)
                 all_cosp_data['Rcosv'].append(Rcosv)
                 all_cosp_data['Icosv'].append(Icosv)
                 all_cosp_data['ws'].append(ws.mean())
+                all_cosp_data['ws_min'].append(float(ws.min()))
+                all_cosp_data['ws_max'].append(float(ws.max()))
             
             LUT_cof[jc]=lut_cof_temp
             
@@ -382,11 +419,11 @@ def FREQCOR_LUT_cof(sps, gss, classnum_first, classnum_ws, Icon_cof, Rcon_cof, W
                 if sps == 1 and tf_peltola==1:
                     fqplt.plot_TF_unified(fun_Lorentz_peltola, fun_Gauss, None, None, None,
                                         denoising, plot, outputpath, norm_range, None, jc, 
-                                        gas_type='h2o', all_classes_data=all_tf_data, file_tag=f"4_mean_TF_all_classes__rh{jc:0{jc_pad}d}__{run_suffix}")
+                                        gas_type='h2o', all_classes_data=all_tf_data, file_tag=f"4_mean_TF_all_classes__rh{jc:0{jc_pad}d}__{run_suffix}", sps=sps)
                 else:
                     fqplt.plot_TF_unified(fun_Lorentz, fun_Gauss, None, None, None,
                                         denoising, plot, outputpath, norm_range, None, jc, 
-                                        gas_type='h2o', all_classes_data=all_tf_data, file_tag=f"4_mean_TF_all_classes__rh{jc:0{jc_pad}d}__{run_suffix}")
+                                        gas_type='h2o', all_classes_data=all_tf_data, file_tag=f"4_mean_TF_all_classes__rh{jc:0{jc_pad}d}__{run_suffix}", sps=sps)
                 
                 fqplt.plot_cosp_unified(freq, None, None, None, denoising, zL, sps,
                                           None, jc, plot, outputpath, 'h2o',
@@ -431,5 +468,3 @@ def FREQCOR_LUT_cof(sps, gss, classnum_first, classnum_ws, Icon_cof, Rcon_cof, W
     del metcon
     del cofmat
     return LUT_cof, classize
-
-
