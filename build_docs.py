@@ -7,6 +7,7 @@ Run this script from the project root directory.
 import subprocess
 import sys
 import webbrowser
+import os
 from pathlib import Path
 
 
@@ -60,7 +61,8 @@ def build_docs():
 
     index_path = build_dir / 'index.html'
     if index_path.exists():
-        webbrowser.open(index_path.as_uri())
+        if not (os.environ.get('CI') or os.environ.get('GITHUB_ACTIONS')):
+            webbrowser.open(index_path.as_uri())
         return True
 
     return False
