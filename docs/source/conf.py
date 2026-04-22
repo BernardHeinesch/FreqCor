@@ -112,6 +112,23 @@ myst_substitutions = {
     'ex_5_cf_vs_ws_unst': _latest_example_output('5_CF_vs_ws__unst__BE-Lon__co2__cosp__all__*.png'),
 }
 
+
+def _substitute_example_outputs(app, docname, source):
+    if docname != 'user_guide/outputs':
+        return
+    text = source[0]
+    for k, v in myst_substitutions.items():
+        if not v:
+            continue
+        repl = f"../{v}"
+        text = text.replace(f'{{{{ {k} }}}}', repl)
+        text = text.replace(f'{{{{{k}}}}}', repl)
+    source[0] = text
+
+
+def setup(app):
+    app.connect('source-read', _substitute_example_outputs)
+
 myst_enable_extensions = [
     'colon_fence',
     'deflist',

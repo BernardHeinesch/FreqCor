@@ -73,42 +73,28 @@ The following figures are shown from the example BE-Lon CO2 cospectral run.
 This figure shows individual (co)spectra contributing to the computation (after initial selection), used to
 evaluate variability and potential outliers.
 
-```{image} ../{{ ex_2_all_individual_co2 }}
-:alt: Individual cospectra (example output)
-```
+![Individual cospectra (example output)](../{{ ex_2_all_individual_co2 }})
 
 ### Filtering diagnostics
 
 These figures illustrate how data were filtered when estimating cut-off frequencies and correction factors.
 
-```{image} ../{{ ex_3_filtering_cof_gas }}
-:alt: Cut-off frequency filtering (example output)
-```
+![Cut-off frequency filtering (example output)](../{{ ex_3_filtering_cof_gas }})
 
-```{image} ../{{ ex_3_filtering_cf_h_unst }}
-:alt: Correction factor filtering (unstable) (example output)
-```
+![Correction factor filtering (unstable) (example output)](../{{ ex_3_filtering_cf_h_unst }})
 
 ### Mean transfer functions and mean cospectra
 
 These figures summarize transfer functions and (co)spectra averaged over classes.
 
-```{image} ../{{ ex_4_mean_tf_all_classes }}
-:alt: Mean transfer functions by class (example output)
-```
+![Mean transfer functions by class (example output)](../{{ ex_4_mean_tf_all_classes }})
 
-```{image} ../{{ ex_4_mean_cosp_all_classes }}
-:alt: Mean cospectra by class (example output)
-```
+![Mean cospectra by class (example output)](../{{ ex_4_mean_cosp_all_classes }})
 
 ### Correction factors
 
 These figures show the correction factors as a function of wind speed for stable and unstable regimes.
 
-```{image} ../{{ ex_5_cf_vs_ws_st }}
-:alt: Correction factors vs wind speed (stable) (example output)
-```
+![Correction factors vs wind speed (stable) (example output)](../{{ ex_5_cf_vs_ws_st }})
 
-```{image} ../{{ ex_5_cf_vs_ws_unst }}
-:alt: Correction factors vs wind speed (unstable) (example output)
-```
+![Correction factors vs wind speed (unstable) (example output)](../{{ ex_5_cf_vs_ws_unst }})
