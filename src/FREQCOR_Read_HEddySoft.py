@@ -32,78 +32,72 @@ TO DO:
     - target_mz should not be hard-coded but aim was to not modify the FREQCOR
       structure
 """
-import datetime
-import glob
 import os
 import pickle
-import re
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from FREQCOR_Read_GEddySoft import calculate_freqcount, filtering
+from FREQCOR_Read_GEddySoft import calculate_freqcount
 
 
 __all__ = ['FREQCOR_Read_HEddySoft']
 
 
+def _filtering(HF5, HD5, KID, DIP, DDI, SST_M98, ITC_w, OOR_w):
+
+    base_thresholds = {
+        'HF5': 4,
+        'HD5': 4,
+        # ignore for the moment
+        # 'KID': 50,
+        'KID': 1000,
+        # way to ground this threshold because not used by the carbon portal;
+        # if used, should be 0.05
+        # 'DIP': 0.05,
+        'DIP': 0.0,
+        'DDI': 3000,
+        'ITC_w': 0.6,
+        'SST_M98': 3,
+    }
+
+    # Initialize the flags as pandas Series with zeros (matching ITC_w's shape)
+    FlagVM_w = np.zeros_like(ITC_w, dtype=int)  # Flag for ITC_w
+    FlagVM_T = np.zeros_like(ITC_w, dtype=int)  # Not used in the task
+    FlagVM_g = np.zeros_like(ITC_w, dtype=int)  # Flag for DIP and DDI
+    FlagF_H = np.zeros_like(ITC_w, dtype=int)   # Not directly used
+    FlagF_g = np.zeros_like(ITC_w, dtype=int)   # Flag for SST_M98
+
+    # Apply filtering logic based on thresholds
+    FlagVM_w = np.where(ITC_w > base_thresholds['ITC_w'], 1, FlagVM_w)
+    FlagVM_w = np.where(OOR_w > 0, 1, FlagVM_w)
+
+    FlagVM_g = np.where(HF5 > base_thresholds['HF5'], 1, 0)
+    FlagVM_g = np.where(HD5 > base_thresholds['HD5'], 1, FlagVM_g)
+    FlagVM_g = np.where(KID > base_thresholds['KID'], 1, FlagVM_g)
+    FlagVM_g = np.where(DIP < base_thresholds['DIP'], 1, FlagVM_g)
+    FlagVM_g = np.where(DDI > base_thresholds['DDI'], 1, FlagVM_g)
+
+    FlagF_g = np.where(SST_M98 > base_thresholds['SST_M98'], 2, 0)
+
+    # Return the flags as pandas Series so you can access them with .values
+    return (pd.Series(FlagVM_w), pd.Series(FlagVM_T), pd.Series(FlagVM_g),
+            pd.Series(FlagF_H), pd.Series(FlagF_g))
+
+
 def FREQCOR_Read_HEddySoft(config, jsite):
     # %%  Initialisation
-
-    # USER CHOICE !
-    # mz to be selected (will choose the closest one)
-    # 33.033 : proposed flux treshold of 0.1
-    # 45.033 : proposed flux treshold of 0.01
-    # 69.0699 : proposed flux treshold of 0.5
-    # 137.132 : proposed flux treshold of 0.2
-    target_mz = 44.013
     apply_filtering = True
     plot = True
 
-    # Collect all candidate files
-    total_to_process = glob.glob(config['IO']['input_path'] + '/' +
-                                 config['IO']['binned_cosp'] + '/*.pkl')
-    total_to_process.sort()
+    # get spectral file
 
-    # Filter files by date in filename if time window enabled
-    if config['TIME_WINDOW']['enable_time_window'] == '1':
-        # Read time window parameters
-        start_datetime_str = config['TIME_WINDOW']['start_datetime']
-        end_datetime_str = config['TIME_WINDOW']['end_datetime']
-        # Parse datetime strings to datetime objects
-        start_datetime = datetime.datetime.strptime(start_datetime_str,
-                                                    '%Y-%m-%d %H:%M')
-        end_datetime = datetime.datetime.strptime(end_datetime_str,
-                                                  '%Y-%m-%d %H:%M')
+    input_path = config['IO']['input_path']
+    input_file = config['IO']['binned_cosp']
+    if not (input_file.startswith('/') or (input_file[1] == ':')):
+        input_file = f'{input_path}/{input_file}'
 
-        # Filter files by date in filename
-        # inclusive date-range based on filename day
-        # (since filename has no time)
-        start_day = start_datetime.date()
-        end_day = end_datetime.date()
-        date_pattern = re.compile(r'spectral_(\d{14})\.pkl$', re.IGNORECASE)
-        filtered = []
-        skipped_badname = 0
-        for filen in total_to_process:
-            base = os.path.basename(filen)
-            m = date_pattern.search(base)
-            if not m:
-                skipped_badname += 1
-                continue
-            yyyymmddhhmmss = m.group(1)
-            try:
-                file_day = datetime.datetime.strptime(yyyymmddhhmmss,
-                                                      '%Y%m%d%H%M%S').date()
-            except ValueError:
-                skipped_badname += 1
-                continue
-            if start_day <= file_day <= end_day:
-                filtered.append(filen)
-        total_to_process = sorted(filtered)
-        print(f'Selected {len(total_to_process)} file(s) within window days'
-              f' [{start_day} .. {end_day}]')
-        if skipped_badname:
-            print(f'Skipped {skipped_badname} file(s) due to unexpected'
-                  f' name/date format')
+    if not os.path.exists(input_file):
+        raise ValueError(f'Input file does not exists: {input_file}')
 
     # %% loop over HEddySoft daily output files
 
@@ -115,59 +109,42 @@ def FREQCOR_Read_HEddySoft(config, jsite):
     else:
         raise ValueError('Species not implemented in HEddySoft')
 
-    # loop over the daily files in the given directory matching the
-    # name pattern
+    # read input file
     sdf = pd.DataFrame()
     idf = pd.DataFrame()
     freqm = pd.DataFrame()
     icon = pd.DataFrame()
     rcon = pd.DataFrame()
-    for filen in total_to_process:
 
-        ldf = pickle.load(open(filen, 'rb'))
+    ldf = pickle.load(open(input_file, 'rb'))
 
-        # ['TIMESTAMP_END', 'wT', 'wind_speed', 'wind_direction', ...]
-        isdf = ldf['scalar']
-        sdf = pd.concat([sdf, isdf])
+    # ['TIMESTAMP_END', 'wT', 'wind_speed', 'wind_direction', ...]
+    sdf = ldf['scalar']
 
-        # ipt_w, ipt_co2, ipt_h2o
-        instrument_df = ldf['instrument']
-        iidf = pd.DataFrame(
-            {'OOR_w': instrument_df['ipt_w'].iloc[11],
-             'HF5': instrument_df[f'ipt_{species}'].iloc[4],
-             'HD5': instrument_df[f'ipt_{species}'].iloc[6],
-             'KID': instrument_df[f'ipt_{species}'].iloc[3],
-             'DIP': instrument_df[f'ipt_{species}'].iloc[10],
-             'DDI': instrument_df[f'ipt_{species}'].iloc[9]},
-            index=isdf.index)
-        iidf.index.name = isdf.index.name
-        idf = pd.concat([idf, iidf])
+    # ipt_w, ipt_co2, ipt_h2o
+    ipt_w = ldf['ipt_w']
+    ipt_gas = ldf[f'ipt_{species}']
+    idf = pd.DataFrame(
+        {'OOR_w': ipt_w[11],
+         'HF5': ipt_gas[4],
+         'HD5': ipt_gas[6],
+         'KID': ipt_gas[3],
+         'DIP': ipt_gas[10],
+         'DDI': ipt_gas[9]},
+        index=sdf.index)
+    idf.index.name = sdf.index.name
 
-        # freq, cospec_wT_scaled, spec_co2_scaled, cospec_wc_co2_scaled,
-        # spec_h2o_scaled, cospec_wc_h2o_scaled
-        spectral_df = ldf['spectral']
-        ifreq = spectral_df['freq'].values
+    # freq, cospec_wT_scaled, spec_co2_scaled, cospec_wc_co2_scaled,
+    # spec_h2o_scaled, cospec_wc_h2o_scaled
+    freqm = ldf['freq']
+    icon = ldf['cospec_wT']
 
-        ifreqm = pd.DataFrame([spectral_df['freq'].to_numpy()],
-                              columns=ifreq, index=isdf.index)
-        ifreqm.index.name = isdf.index.name
-        freqm = pd.concat([freqm, ifreqm])
-
-        iicon = pd.DataFrame([spectral_df['cospec_wT_scaled'].to_numpy()],
-                             columns=ifreq, index=isdf.index)
-        iicon.index.name = isdf.index.name
-        icon = pd.concat([icon, iicon])
-
-        if config['PROCEDURE_OPTIONS']['sps'] == '1':
-            # Real cospectral data from file (VOC)
-            rron = spectral_df[f'cospec_wc_{species}_scaled']
-        elif config['PROCEDURE_OPTIONS']['sps'] == '2':
-            # Real spectral data from file (VOC)
-            rron = spectral_df[f'spec_{species}_scaled']
-        ircon = pd.DataFrame([rron.to_numpy()],
-                             columns=ifreq, index=isdf.index)
-        ircon.index.name = isdf.index.name
-        rcon = pd.concat([rcon, ircon])
+    if config['PROCEDURE_OPTIONS']['sps'] == '1':
+        # Real cospectral data
+        rcon = ldf[f'cospec_wc_{species}']
+    elif config['PROCEDURE_OPTIONS']['sps'] == '2':
+        # Real spectral data
+        rcon = ldf[f'spec_{species}']
 
     sdf = pd.concat([sdf, idf], axis=1)
     sdf['Fc'] = sdf[f'F_{species}']
@@ -192,7 +169,7 @@ def FREQCOR_Read_HEddySoft(config, jsite):
         freqm * (float(config['EC_SETUP']['zmeas']) -
                  float(config['EC_SETUP']['disph'])),
         sdf['wind_speed'].values.reshape(1, -1))
-    
+
     # create freqcount, the population in each bin.
     # Present in the EP outputs but not in the GEddySoft outputs
     freq_array = freqm.iloc[:, 0].to_numpy()
@@ -207,7 +184,7 @@ def FREQCOR_Read_HEddySoft(config, jsite):
 
     # based on raw data flagging
     if apply_filtering:
-        FlagVM_w, FlagVM_T, FlagVM_g, FlagF_H, FlagF_g = filtering(
+        FlagVM_w, FlagVM_T, FlagVM_g, FlagF_H, FlagF_g = _filtering(
             sdf['HF5'].to_numpy(),
             sdf['HD5'].to_numpy(),
             sdf['KID'].to_numpy(),
@@ -216,6 +193,12 @@ def FREQCOR_Read_HEddySoft(config, jsite):
             sdf[f'steady_state_wc_{species}_Mahrt1998'].to_numpy(),
             sdf['itc_w'].to_numpy(),
             sdf['OOR_w'].to_numpy())
+    else:
+        FlagVM_w = pd.Series(np.zeros_like(sdf['itc_w'], dtype=int))
+        FlagVM_T = pd.Series(np.zeros_like(sdf['itc_w'], dtype=int))
+        FlagVM_g = pd.Series(np.zeros_like(sdf['itc_w'], dtype=int))
+        FlagF_H = pd.Series(np.zeros_like(sdf['itc_w'], dtype=int))
+        FlagF_g = pd.Series(np.zeros_like(sdf['itc_w'], dtype=int))
 
     # Remove freq bins fully filled with Nans
     idx = icon.notna().any(axis=1) & rcon.notna().any(axis=1)
@@ -223,10 +206,10 @@ def FREQCOR_Read_HEddySoft(config, jsite):
     freqn = freqn[idx]
     icon = icon[idx]
     rcon = rcon[idx]
-    
+
     # filtering based on full NaNs or null data
-    idx = (icon.notna().any(axis=0) & 
-           rcon.notna().any(axis=0) & 
+    idx = (icon.notna().any(axis=0) &
+           rcon.notna().any(axis=0) &
            (~sdf['wind_speed'].isnull().values))
     freqm = freqm.loc[:, idx]
     freqn = freqn.loc[:, idx]
@@ -240,23 +223,23 @@ def FREQCOR_Read_HEddySoft(config, jsite):
     FlagF_H = FlagF_H[idx]
     FlagF_g = FlagF_g[idx]
     nspec = sum(idx)
-    
+
     # Reset the indexes so to have a continuous integer series of indexes
     freqm = freqm.reset_index(drop=True)
     freqn = freqn.reset_index(drop=True)
-    icon = icon.reset_index(drop=True)    
+    icon = icon.reset_index(drop=True)
     rcon = rcon.reset_index(drop=True)
     # sdf = sdf.reset_index(drop=True)
 
-    # %% 
-    
+    # %%
+
     # Series of natural frequencies, taken as the first column of the freqm
     # DataFrame where all the columns should contain the same values (see here above)
     freq = freqm.copy()
     freq = freq.iloc[:, 0]
     # Same for normalised frequencies
     # freqn = freqn.iloc[:,0]
-   
+
     # Cleaned (co)spectra vector length (number of actually present frequency bins)
     nfreq = freq.shape[0]
 
@@ -265,7 +248,7 @@ def FREQCOR_Read_HEddySoft(config, jsite):
         massman_coef = pd.read_csv(config['IO']['massman_path'], header=0, comment='#')
         massman_coef = massman_coef.set_index('var')
         massman_coef = massman_coef.loc[:,jsite]
-        
+
         A0 = [float(x) for x in massman_coef['A0'].split(',')]
         kf0 = [float(x) for x in massman_coef['kf0'].split(',')]
         mu = [float(x) for x in massman_coef['mu'].split(',')]
@@ -276,16 +259,16 @@ def FREQCOR_Read_HEddySoft(config, jsite):
 
     # create a copy of icon for further use
     icosp = icon.copy()
-    
-    if plot:    
+
+    if plot:
         # Use the first column as the time axis
         time = sdf.index
-    
+
         fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(16, 8),
                                  sharex=True, sharey=False)
-    
+
         # First subplot: H flux
-        axes[0].scatter(time, sdf['wT'], s=10, color='black', label='H flux')
+        axes[0].scatter(time, sdf['H'], s=10, color='black', label='H flux')
         axes[0].scatter(
             time[FlagVM_w > 0],
             sdf.loc[(FlagVM_w > int(config['USER_LIMITS']['fvm'])).values, 'H'],
@@ -316,7 +299,7 @@ def FREQCOR_Read_HEddySoft(config, jsite):
         axes[0].legend()
         axes[0].set_xlabel('Time')
         axes[0].set_ylabel('H')
-    
+
         # Second subplot: gas flux
         axes[1].scatter(time, sdf.loc[:, 'Fc'], s=10, color='black',
                         label='Fgas flux')
@@ -364,11 +347,11 @@ def FREQCOR_Read_HEddySoft(config, jsite):
         axes[1].legend()
         axes[1].set_xlabel('Time')
         axes[1].set_ylabel('Fgas')
-    
+
         plt.tight_layout()
 
         if int(config['PROCEDURE_OPTIONS']['plot_save']) == 1:
-            plt.savefig(config['IO']['output_path'] + '/flux filtering.png')
+            plt.savefig(config['IO']['output_path'] + '/flux_filtering.png')
             plt.close()
         else:
             plt.show()

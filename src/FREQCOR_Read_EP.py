@@ -16,14 +16,14 @@ from FREQCOR_VM_flag import FREQCOR_VM_flag
 # Custom exception class for FREQCOR_Read errors
 class FREQCORReadError(Exception):
     """Exception raised for errors in the FREQCOR_Read function.
-    
+
     Attributes:
         message -- explanation of the error
     """
     def __init__(self, message):
         self.message = message
         super().__init__(self.message)
-        
+
 def FREQCOR_Read_EP(config, jsite):
     """
     Read data files from EddyPro and return ideal and real (co)spectra dataframes,
@@ -88,10 +88,10 @@ def FREQCOR_Read_EP(config, jsite):
      Raises
      ------
      FREQCORReadError
-        If inputs cannot be read or validated (e.g., no files found 
+        If inputs cannot be read or validated (e.g., no files found
         or file counts don't match between different data sources).
     """
-    
+
     # Extract variables
     dirname = config['IO']['input_path']
     dirname_sp = config['IO']['input_path_sp']
@@ -111,9 +111,9 @@ def FREQCOR_Read_EP(config, jsite):
         try:
             data_dir = os.path.join(output_path,f'{output_pattern}_intermediate_data')
             file_prefix = config['PROCESSED_DATA']['file_prefix']
-            
+
             print(f"Attempting to load previously processed data from {data_dir}...")
-            
+
             # Check if metadata file exists to verify all required files are present
             metadata_path = os.path.join(data_dir, f"{file_prefix}_metadata.json")
             if not os.path.exists(metadata_path):
@@ -122,7 +122,7 @@ def FREQCOR_Read_EP(config, jsite):
                 # Load metadata to check what files should be available
                 with open(metadata_path, 'r') as f:
                     metadata = json.load(f)
-                
+
                 # Check if all required files exist
                 all_files_exist = True
                 for filename in metadata['files_saved']:
@@ -130,23 +130,23 @@ def FREQCOR_Read_EP(config, jsite):
                         print(f"Missing file: {filename}. Will process data from scratch.")
                         all_files_exist = False
                         break
-                
+
                 if all_files_exist:
                     print("Loading all data from saved files...")
-                    
+
                     # Load scalar values
                     with open(os.path.join(data_dir, f"{file_prefix}_scalar_values.json"), 'r') as f:
                         scalar_values = json.load(f)
                     nspec = scalar_values['nspec']
                     nfreq = scalar_values['nfreq']
-                    
+
                     # Load DataFrames
                     Icon_raw = pd.read_pickle(os.path.join(data_dir, f"{file_prefix}_Icon_raw.pkl"))
                     Rcon_raw = pd.read_pickle(os.path.join(data_dir, f"{file_prefix}_Rcon_raw.pkl"))
                     Icosp_raw = pd.read_pickle(os.path.join(data_dir, f"{file_prefix}_Icosp_raw.pkl"))
                     freqn = pd.read_pickle(os.path.join(data_dir, f"{file_prefix}_freqn.pkl"))
                     meteo_df = pd.read_pickle(os.path.join(data_dir, f"{file_prefix}_meteo_df.pkl"))
-                    
+
                     # Load Series
                     freq = pd.read_pickle(os.path.join(data_dir, f"{file_prefix}_freq.pkl"))
                     WS = pd.read_pickle(os.path.join(data_dir, f"{file_prefix}_WS.pkl"))
@@ -158,15 +158,15 @@ def FREQCOR_Read_EP(config, jsite):
                         FlagF_H = pd.read_pickle(os.path.join(data_dir, f"{file_prefix}_FlagF_H_vitale.pkl"))
                         FlagF_g = pd.read_pickle(os.path.join(data_dir, f"{file_prefix}_FlagF_g_vitale.pkl"))
                         flag_wd = pd.read_pickle(os.path.join(data_dir, f"{file_prefix}_flag_wd_vitale.pkl"))
-                        
+
                         # Load arrays
                         FlagVM_w = np.load(os.path.join(data_dir, f"{file_prefix}_FlagVM_w_vitale.npy"))
                         FlagVM_T = np.load(os.path.join(data_dir, f"{file_prefix}_FlagVM_T_vitale.npy"))
                         FlagVM_g = np.load(os.path.join(data_dir, f"{file_prefix}_FlagVM_g_vitale.npy"))
-                    else: 
+                    else:
                         FlagF_H = pd.read_pickle(os.path.join(data_dir, f"{file_prefix}_FlagF_H.pkl"))
                         FlagF_g = pd.read_pickle(os.path.join(data_dir, f"{file_prefix}_FlagF_g.pkl"))
-                        
+
                         # Load arrays
                         FlagVM_w = np.load(os.path.join(data_dir, f"{file_prefix}_FlagVM_w.npy"))
                         FlagVM_T = np.load(os.path.join(data_dir, f"{file_prefix}_FlagVM_T.npy"))
@@ -175,19 +175,19 @@ def FREQCOR_Read_EP(config, jsite):
                         # where the flag_wd variable was not considered
                             flag_wd = pd.read_pickle(os.path.join(data_dir, f"{file_prefix}_flag_wd.pkl"))
                         except:
-                            flag_wd = pd.Series([np.nan] * len(FlagF_H), index=FlagF_H.index) 
+                            flag_wd = pd.Series([np.nan] * len(FlagF_H), index=FlagF_H.index)
                     print("Successfully loaded all processed data!")
                     print(f"Loaded {nspec} spectra with {nfreq} frequency bins.")
-                    
+
                     # Create the array with count of frequencies per bin if absent
                     try:
                         freqcount = pd.read_pickle(os.path.join(data_dir, f"{file_prefix}_freqcount.pkl"))
                     except FileNotFoundError:
                         freqcount = pd.Series(320*freq)  # Default weighting factor taken from example site
                     # Return the loaded data
-                    return [nspec, Icon_raw, Rcon_raw, Icosp_raw, nfreq, freq, freqn, freqcount, meteo_df, WS, WD, Ustar, 
+                    return [nspec, Icon_raw, Rcon_raw, Icosp_raw, nfreq, freq, freqn, freqcount, meteo_df, WS, WD, Ustar,
                             Zeta, FlagF_H, FlagF_g, FlagVM_w, FlagVM_T, FlagVM_g, flag_wd, massman_coef]
-                    
+
         except Exception as e:
             print(f"Error loading processed data: {e}")
     # Read time window parameters if enabled
@@ -196,24 +196,24 @@ def FREQCOR_Read_EP(config, jsite):
     if 'TIME_WINDOW' in config:
         if 'enable_time_window' in config['TIME_WINDOW']:
             enable_time_window = int(config['TIME_WINDOW']['enable_time_window'])
-        
+
         if enable_time_window == 1:
             start_datetime_str = config['TIME_WINDOW']['start_datetime']
             end_datetime_str = config['TIME_WINDOW']['end_datetime']
-            
+
             # Parse datetime strings to datetime objects
             start_datetime = datetime.datetime.strptime(start_datetime_str, '%Y-%m-%d %H:%M')
             end_datetime = datetime.datetime.strptime(end_datetime_str, '%Y-%m-%d %H:%M')
-            
+
             print(f"  Time window enabled: {start_datetime} to {end_datetime}")
-        
+
         # ------------------------------------------------------------------
         # Parse optional exclusion windows
         # ------------------------------------------------------------------
         enable_exclusion = 0
         if 'enable_exclusion_windows' in config['TIME_WINDOW']:
             enable_exclusion = int(config['TIME_WINDOW']['enable_exclusion_windows'])
-        
+
         if enable_exclusion == 1:
             if 'date_exclusion_start' not in config['TIME_WINDOW'] or \
                'date_exclusion_end'   not in config['TIME_WINDOW']:
@@ -221,7 +221,7 @@ def FREQCOR_Read_EP(config, jsite):
                     "enable_exclusion_windows = 1 but date_exclusion_start and/or "
                     "date_exclusion_end are missing from the [TIME_WINDOW] section."
                 )
-            
+
             # Split comma-separated lists and strip whitespace
             excl_starts_raw = [s.strip() for s in
                                config['TIME_WINDOW']['date_exclusion_start'].split(',')
@@ -229,7 +229,7 @@ def FREQCOR_Read_EP(config, jsite):
             excl_ends_raw   = [s.strip() for s in
                                config['TIME_WINDOW']['date_exclusion_end'].split(',')
                                if s.strip()]
-            
+
             # Paired count check
             if len(excl_starts_raw) != len(excl_ends_raw):
                 raise FREQCORReadError(
@@ -237,7 +237,7 @@ def FREQCOR_Read_EP(config, jsite):
                     f"date_exclusion_end has {len(excl_ends_raw)}. "
                     "Each exclusion window must have both a start and an end date."
                 )
-            
+
             for i, (es_raw, ee_raw) in enumerate(zip(excl_starts_raw, excl_ends_raw), start=1):
                 try:
                     es = datetime.datetime.strptime(es_raw, '%Y-%m-%d %H:%M')
@@ -253,7 +253,7 @@ def FREQCOR_Read_EP(config, jsite):
                         f"Exclusion window {i}: cannot parse end date '{ee_raw}'. "
                         "Expected format: YYYY-MM-DD HH:MM"
                     )
-                
+
                 # Warn (not error) if exclusion window is fully outside the main window
                 if enable_time_window == 1:
                     if ee <= start_datetime or es >= end_datetime:
@@ -269,14 +269,14 @@ def FREQCOR_Read_EP(config, jsite):
                             f"({start_datetime} â€“ {end_datetime}). "
                             "Only the overlapping portion will be excluded."
                         )
-                
+
                 exclusion_windows.append((es, ee))
-            
+
             if exclusion_windows:
                 print(f"Exclusion windows enabled: {len(exclusion_windows)} window(s) defined.")
                 for i, (es, ee) in enumerate(exclusion_windows, start=1):
                     print(f"  Exclusion {i}: {es} to {ee}")
-    
+
     # Read fluxes, weather and qc data.
     # fluxes and weather data
     fileb = glob.glob(os.path.join(dirname,'*'+foname+'*_adv*.csv'))[0]
@@ -308,26 +308,26 @@ def FREQCOR_Read_EP(config, jsite):
         except Exception as e:
             print(f"Error reading Vitale QC details file: {e}. Will switch to EddyPro output flags.")
             vitale_qc_flags = 0
-            
+
     # Remove missing data rows
     meteo_data = meteo_data[meteo_data.filename != 'not_enough_data']
     # flag_data = flag_data[flag_data.filename[:] != 'not_enough_data']
     # meteo_data = meteo_data.reset_index(drop=True)
     # flag_data = flag_data.reset_index(drop=True)
-    
+
     # Filter by time window if enabled
     all_cospectra_files = glob.glob(os.path.join(dirname_sp,'eddypro_binned_cospectra','*' + fcname + '*_adv.csv'))
-    filtered_cospectra_files = all_cospectra_files.copy() 
+    filtered_cospectra_files = all_cospectra_files.copy()
     if enable_time_window == 1:
-        meteo_data = meteo_data[(meteo_data['datetime'] >= start_datetime) & 
+        meteo_data = meteo_data[(meteo_data['datetime'] >= start_datetime) &
                               (meteo_data['datetime'] <= end_datetime)]
-        # flag_data = flag_data[(flag_data['datetime'] >= start_datetime) & 
+        # flag_data = flag_data[(flag_data['datetime'] >= start_datetime) &
         #                     (flag_data['datetime'] <= end_datetime)]
         # meteo_data = meteo_data.reset_index(drop=True)
         # flag_data = flag_data.reset_index(drop=True)
-        
-        
-        
+
+
+
     # ------------------------------------------------------------------
     # Apply exclusion windows to meteo_data (within or without main window)
     # Exclusion is applied as a mask: timestamps inside ANY exclusion interval
@@ -357,7 +357,7 @@ def FREQCOR_Read_EP(config, jsite):
         time_parts = meteo_data['datetime'].dt.strftime('%H%M').values
         for date_str, time_str in zip(date_parts, time_parts):
             filtered_timestamps.add(date_str + '-' + time_str)
-        
+
         # Match the set of filtered timestamps to the timestamps in cospectra
         # file names
         filtered_cospectra_files = []
@@ -368,12 +368,12 @@ def FREQCOR_Read_EP(config, jsite):
                 file_timestamp = timestamp_match.group(1)
                 if file_timestamp in filtered_timestamps:
                     filtered_cospectra_files.append(filen)
-        
+
         if len(filtered_cospectra_files) == 0:
             raise FREQCORReadError('No cospectra files found for the specified time window')
-                
+
         print(f"  Found {len(filtered_cospectra_files)} cospectra files matching the time window")
-    
+
     if vitale_qc_flags == 1:
         # Apply filtering to flag_data as well:
         # to do: do not reset index and keep datetime indexing when possible
@@ -386,12 +386,12 @@ def FREQCOR_Read_EP(config, jsite):
     # reset meteo_data index for later consistency and correct indexing
     # to do : remove integer-indexing and keep datetime indexing when possible
     meteo_data = meteo_data.reset_index(drop=True)
-    
+
     # Use the filtered cospectra files sorted in alphabetical order
     total_to_process = filtered_cospectra_files
     total_to_process.sort()
     nspec = len(total_to_process)
-    
+
     # Verify the number of selected (co)spectra
     if vitale_qc_flags == 1:
         if not (meteo_data['datetime'] == flag_data['datetime']).all():
@@ -436,7 +436,7 @@ def FREQCOR_Read_EP(config, jsite):
     # Ideal (co)spectral data from file (sensible heat) - for correction factor
     # computation
     Ccosbrut = pd.DataFrame(np.zeros(shape=(jfbin_inferred, nspec)))
-    
+
     # Process files sequentially
     print(f"  Reading {len(total_to_process)} cospectra files...")
     for k, filen in enumerate(total_to_process):
@@ -451,11 +451,11 @@ def FREQCOR_Read_EP(config, jsite):
                     f"Please re-export cospectra with consistent binning."
                 )
             if sps == 1:
-                Icosbrut.iloc[:,k]=file_data.loc[:,'f_nat*cospec(w_ts)/cov(w_ts)'] 
+                Icosbrut.iloc[:,k]=file_data.loc[:,'f_nat*cospec(w_ts)/cov(w_ts)']
                 if gss == 1:
-                    Rcosbrut.iloc[:,k]=file_data.loc[:,'f_nat*cospec(w_co2)/cov(w_co2)']   
+                    Rcosbrut.iloc[:,k]=file_data.loc[:,'f_nat*cospec(w_co2)/cov(w_co2)']
                 elif gss == 2:
-                    Rcosbrut.iloc[:,k]=file_data.loc[:,'f_nat*cospec(w_h2o)/cov(w_h2o)'] 
+                    Rcosbrut.iloc[:,k]=file_data.loc[:,'f_nat*cospec(w_h2o)/cov(w_h2o)']
                 elif gss == 3:
                     try:
                         Rcosbrut.iloc[:,k] = file_data.loc[:,'f_nat*cospec(w_o3)/cov(w_o3)']
@@ -466,11 +466,11 @@ def FREQCOR_Read_EP(config, jsite):
                 elif gss == 5:
                     Rcosbrut.iloc[:,k]=file_data.loc[:,'f_nat*cospec(w_n2o)/cov(w_n2o)']
             else:
-                Icosbrut.iloc[:,k]=file_data.loc[:,'f_nat*spec(ts)/var(ts)']    
+                Icosbrut.iloc[:,k]=file_data.loc[:,'f_nat*spec(ts)/var(ts)']
                 if gss == 1:
-                    Rcosbrut.iloc[:,k]=file_data.loc[:,'f_nat*spec(co2)/var(co2)']     
+                    Rcosbrut.iloc[:,k]=file_data.loc[:,'f_nat*spec(co2)/var(co2)']
                 elif gss == 2:
-                    Rcosbrut.iloc[:,k]=file_data.loc[:,'f_nat*spec(h2o)/var(h2o)']    
+                    Rcosbrut.iloc[:,k]=file_data.loc[:,'f_nat*spec(h2o)/var(h2o)']
                 elif gss == 3:
                     try:
                         Rcosbrut.iloc[:,k] = file_data.loc[:,'f_nat*spec(o3)/var(o3)']
@@ -480,10 +480,10 @@ def FREQCOR_Read_EP(config, jsite):
                     Rcosbrut.iloc[:,k]=file_data.loc[:,'f_nat*spec(ch4)/var(ch4)']
                 elif gss == 5:
                     Rcosbrut.iloc[:,k]=file_data.loc[:,'f_nat*spec(n2o)/var(n2o)']
-            
-            
-            Ccosbrut.iloc[:,k]=file_data.loc[:,'f_nat*cospec(w_ts)/cov(w_ts)']    
-            
+
+
+            Ccosbrut.iloc[:,k]=file_data.loc[:,'f_nat*cospec(w_ts)/cov(w_ts)']
+
             # Name the columns with datetime information extracted from file name
             filename = os.path.basename(filen)
             timestamp_match = re.search(r'(\d{8}-\d{4})', filename)
@@ -497,16 +497,16 @@ def FREQCOR_Read_EP(config, jsite):
             Icosbrut.rename(columns={k: file_timestamp}, inplace=True)
             Rcosbrut.rename(columns={k: file_timestamp}, inplace=True)
             Ccosbrut.rename(columns={k: file_timestamp}, inplace=True)
-            
+
             # Fill numfreq with the number of frequencies per bin
             numfreq.iloc[:, k] = file_data.iloc[:, 0]
-            
+
             # Fill freqm and freqn with the natural and normal frequency values
             freqm.iloc[:, k] = file_data.iloc[:, 1]
             freqn.iloc[:, k] = file_data.iloc[:, 2]
-            
+
             # Check if all files have the same number of bins. If not, it could
-            # lead to mismatch issues in the rest of the procedure. 
+            # lead to mismatch issues in the rest of the procedure.
             # Warning printed.
             if k > 0:
                 if not freqm.iloc[:, k].equals(freqm.iloc[:, 0]):
@@ -537,7 +537,7 @@ def FREQCOR_Read_EP(config, jsite):
     meteo_data = meteo_data.loc[valid_ts,:]
     if vitale_qc_flags == 1:
         flag_data = flag_data.loc[valid_ts,:]
-    
+
     # match boolean index to (co)spectra dataframes column names
     valid_ts.index = Icosbrut.columns
     Icosbrut = Icosbrut.loc[:, valid_ts]
@@ -548,15 +548,15 @@ def FREQCOR_Read_EP(config, jsite):
     numfreq = numfreq.loc[:, valid_ts]
 
     nspec = Icosbrut.shape[1]
-    
-    
+
+
     # Suppression of missing frequencies lines.
     # Assumption that all files have the same frequency bins (checked above).
     # Therefore, the natural frequency dataframe contains identical columns and
     # the first column can be used to represent all the others.
     freq = freqm.copy()
     freq = freq.iloc[:,0]
-    
+
     valid_rows = (numfreq.iloc[:,0] != 0)
     freqm = freqm.loc[valid_rows,:]
     freq = freq.loc[valid_rows]
@@ -567,23 +567,23 @@ def FREQCOR_Read_EP(config, jsite):
     if (freqn <= 0).any().any():
         raise FREQCORReadError('Error: freqn contains non-positive values. Normalized frequency and (z-d) cannot be < 0. Please check your data.')
     numfreq = numfreq.loc[valid_rows,:]
-    
+
     # Reset the indexes so to have a continuous integer series of indexes
-    freqm = freqm.reset_index(drop=True)    
+    freqm = freqm.reset_index(drop=True)
     freq = freq.reset_index(drop=True)
-    Icosbrut = Icosbrut.reset_index(drop=True)    
-    Rcosbrut = Rcosbrut.reset_index(drop=True)    
-    Ccosbrut = Ccosbrut.reset_index(drop=True)    
-    
+    Icosbrut = Icosbrut.reset_index(drop=True)
+    Rcosbrut = Rcosbrut.reset_index(drop=True)
+    Ccosbrut = Ccosbrut.reset_index(drop=True)
+
     freqn = freqn.reset_index(drop=True)
     numfreq = numfreq.reset_index(drop=True)
     # Define one variable to represent the overall weighting of bins
     freqcount = numfreq.iloc[:,0]
     # Number of available bins after cleaning
     nfreq = freqm.shape[0]
-    
-    # Division of (co)spectral density by frequency (because Eddypro files are 
-    # in format f_nat*(co)spec/(co)var) 
+
+    # Division of (co)spectral density by frequency (because Eddypro files are
+    # in format f_nat*(co)spec/(co)var)
     try:
         if freqm.empty:
             print("Warning: freqm is empty. Cannot perform division.")
@@ -598,33 +598,33 @@ def FREQCOR_Read_EP(config, jsite):
         Icon_raw = pd.DataFrame(index=Icosbrut.index, columns=Icosbrut.columns)
         Rcon_raw = pd.DataFrame(index=Rcosbrut.index, columns=Rcosbrut.columns)
         Icosp_raw = pd.DataFrame(index=Ccosbrut.index, columns=Ccosbrut.columns)
-    
+
     meteo_data = meteo_data.reset_index(drop=True)
     if vitale_qc_flags == 1:
         flag_data = flag_data.reset_index(drop=True)
-    
+
     # Rename variables
     H=meteo_data.loc[:,'H'].copy()                                   # Sensible heat
     if gss == 1 or gss == 2 :
         Fc=(meteo_data.loc[:,'un_co2_flux'].copy()).rename('Fc')     # CO2 Flux (uncorrected)
-        FcEP=(meteo_data.loc[:,'co2_flux'].copy()).rename('FcEP')    # CO2 Flux (EddyPro corrected)        
+        FcEP=(meteo_data.loc[:,'co2_flux'].copy()).rename('FcEP')    # CO2 Flux (EddyPro corrected)
         LE=(meteo_data.loc[:,'un_LE'].copy()).rename('LE')           # Latent heat (uncorrected)
         LEEP=(meteo_data.loc[:,'LE'].copy()).rename('LEEP')          # Latent heat (EP corrected)
         RH=meteo_data.loc[:,'RH'].copy()                             # Relative humidity
         meteo_df = pd.concat([H,Fc,FcEP,LE,LEEP,RH],axis=1)
-    elif gss==3 : 
+    elif gss==3 :
         Fc=(meteo_data.loc[:,'un_o3_flux'].copy()).rename('Fc')      # O3 flux (uncorrected)
-        FcEP=(meteo_data.loc[:,'o3_flux'].copy()).rename('FcEP')     # O3 flux (EP corrected) 
+        FcEP=(meteo_data.loc[:,'o3_flux'].copy()).rename('FcEP')     # O3 flux (EP corrected)
         meteo_df = pd.concat([H,Fc,FcEP],axis=1)
-    elif gss==4 : 
+    elif gss==4 :
         Fc=(meteo_data.loc[:,'un_ch4_flux'].copy()).rename('Fc')      # CH4 flux (uncorrected)
-        FcEP=(meteo_data.loc[:,'ch4_flux'].copy()).rename('FcEP')     # CH4 flux (EP corrected) 
+        FcEP=(meteo_data.loc[:,'ch4_flux'].copy()).rename('FcEP')     # CH4 flux (EP corrected)
         meteo_df = pd.concat([H,Fc,FcEP],axis=1)
-    elif gss==5 : 
+    elif gss==5 :
         Fc=(meteo_data.loc[:,'un_n2o_flux'].copy()).rename('Fc')      # N2O flux (uncorrected)
-        FcEP=(meteo_data.loc[:,'n2o_flux'].copy()).rename('FcEP')     # N2O flux (EP corrected) 
+        FcEP=(meteo_data.loc[:,'n2o_flux'].copy()).rename('FcEP')     # N2O flux (EP corrected)
         meteo_df = pd.concat([H,Fc,FcEP],axis=1)
-    
+
     WS=meteo_data.loc[:,'wind_speed'].copy()                   # Wind speed
     WD=meteo_data.loc[:,'wind_dir'].copy()                     # Wind direction
     Ustar=meteo_data.loc[:,'u*'].copy()                        # Friction velocity
@@ -633,16 +633,16 @@ def FREQCOR_Read_EP(config, jsite):
     FlagVM_do=meteo_data.loc[:,'drop_out_hf'].copy()           # Vickers and Mahrt flag drop out
     FlagVM_skh=meteo_data.loc[:,'skewness_kurtosis_hf'].copy() # Vickers and Mahrt flag skewness hard
     FlagVM_dh=meteo_data.loc[:,'discontinuities_hf'].copy()    # Vickers and Mahrt flag discontinuitites hard
-    
+
     # Get global flags for later filtering:
-        # When Vitale outputs are available, the global flag corresponds to the
-        # _DATA_FLAG variable for each flux
-        # When the output from EddyPro is used, the global flag is computed with
-        # a specific function to put together results from different VM tests
+    # When Vitale outputs are available, the global flag corresponds to the
+    # _DATA_FLAG variable for each flux
+    # When the output from EddyPro is used, the global flag is computed with
+    # a specific function to put together results from different VM tests
     if vitale_qc_flags == 1 :
         FlagF_H = flag_data.loc[:,'H_SSITC_TEST'].copy()
         # Both "w" and "t_sonic" quality flags are included in the "H_DATA_FLAG"
-        # to be consistent with the current code structure both variables are 
+        # to be consistent with the current code structure both variables are
         # defined in the same way.
         FlagVM_w = flag_data.loc[:,'H_DATA_FLAG'].copy()
         FlagVM_T = flag_data.loc[:,'H_DATA_FLAG'].copy()
@@ -652,7 +652,7 @@ def FREQCOR_Read_EP(config, jsite):
             FlagVM_g = flag_data.loc[:,'NEE_DATA_FLAG'].copy()
         elif gss==2:
             FlagF_g = flag_data.loc[:,'LE_SSITC_TEST'].copy()
-            FlagVM_g = flag_data.loc[:,'LE_DATA_FLAG'].copy()                 
+            FlagVM_g = flag_data.loc[:,'LE_DATA_FLAG'].copy()
         # do they exist for other gas?
         # "VM" flags are expected to be arrays in the rest of the code: convert
         FlagVM_w = np.array(FlagVM_w)
@@ -664,41 +664,40 @@ def FREQCOR_Read_EP(config, jsite):
         # for compatiblity with the rest of the routine
         flag_wd = FlagF_H.copy()
         flag_wd[:] = np.nan
-            
+
         # Foken flags
         if gss==1:
-            FlagF_g=meteo_data.loc[:,'qc_co2_flux']          
+            FlagF_g=meteo_data.loc[:,'qc_co2_flux']
         elif gss==2:
-            FlagF_g=meteo_data.loc[:,'qc_LE']                  
+            FlagF_g=meteo_data.loc[:,'qc_LE']
         elif gss==3:
             FlagF_g=meteo_data.loc[:,'qc_o3_flux']
         elif gss==4:
             FlagF_g=meteo_data.loc[:,'qc_ch4_flux']
         elif gss==5:
             FlagF_g=meteo_data.loc[:,'qc_n2o_flux']
-        
-        
-        # Create a global quality flag 
+
+        # Create a global quality flag
         # for VM test
         NumberDataFLAGF = len(meteo_data)
         FlagVM_w, FlagVM_T, FlagVM_g = FREQCOR_VM_flag(NumberDataFLAGF, FlagVM_sp, FlagVM_do, FlagVM_skh, FlagVM_dh, gss)
-        
-    #%% Read Massman coefficients 
+
+    #%% Read Massman coefficients
     # from file when available
     try:
         massman_coef = pd.read_csv(massmanpath, header=0, comment='#')
         massman_coef = massman_coef.set_index('var')
         massman_coef = massman_coef.loc[:,jsite]
-        
+
         A0 = [float(x) for x in massman_coef['A0'].split(',')]
         kf0 = [float(x) for x in massman_coef['kf0'].split(',')]
         mu = [float(x) for x in massman_coef['mu'].split(',')]
-    
+
         massman_coef = [A0, kf0, mu]
     except:
         massman_coef=np.array([np.nan]*3)
-    
-    #%% Save the processed data 
+
+    #%% Save the processed data
     # to files for faster reloading if requested
     if 'PROCESSED_DATA' in config and int(config['PROCESSED_DATA']['enable_saving']) == 1:
         try:
@@ -710,16 +709,16 @@ def FREQCOR_Read_EP(config, jsite):
                 file_prefix = f"{jsite}_{timestamp}"
             else:
                 file_prefix = f"{jsite}"
-                
+
             print(f"Saving processed data to {output_dir} for faster reloading...")
-            
+
             # Save DataFrames
             Icon_raw.to_pickle(os.path.join(output_dir, f"{file_prefix}_Icon_raw.pkl"))
             Rcon_raw.to_pickle(os.path.join(output_dir, f"{file_prefix}_Rcon_raw.pkl"))
             Icosp_raw.to_pickle(os.path.join(output_dir, f"{file_prefix}_Icosp_raw.pkl"))
             freqn.to_pickle(os.path.join(output_dir, f"{file_prefix}_freqn.pkl"))
             meteo_df.to_pickle(os.path.join(output_dir, f"{file_prefix}_meteo_df.pkl"))
-            
+
             # Save Series
             freq.to_pickle(os.path.join(output_dir, f"{file_prefix}_freq.pkl"))
             WS.to_pickle(os.path.join(output_dir, f"{file_prefix}_WS.pkl"))
@@ -729,27 +728,27 @@ def FREQCOR_Read_EP(config, jsite):
             freqcount.to_pickle(os.path.join(output_dir, f"{file_prefix}_freqcount.pkl"))
             # Save arrays
             np.save(os.path.join(output_dir, f"{file_prefix}_massman_coef.npy"), massman_coef)
-            
+
             if vitale_qc_flags == 1:
                 FlagF_H.to_pickle(os.path.join(output_dir, f"{file_prefix}_FlagF_H_vitale.pkl"))
                 FlagF_g.to_pickle(os.path.join(output_dir, f"{file_prefix}_FlagF_g_vitale.pkl"))
                 flag_wd.to_pickle(os.path.join(output_dir, f"{file_prefix}_flag_wd_vitale.pkl"))
-                
-                # Save arrays 
+
+                # Save arrays
                 np.save(os.path.join(output_dir, f"{file_prefix}_FlagVM_w_vitale.npy"), FlagVM_w)
                 np.save(os.path.join(output_dir, f"{file_prefix}_FlagVM_T_vitale.npy"), FlagVM_T)
                 np.save(os.path.join(output_dir, f"{file_prefix}_FlagVM_g_vitale.npy"), FlagVM_g)
             else:
-                
+
                 FlagF_H.to_pickle(os.path.join(output_dir, f"{file_prefix}_FlagF_H.pkl"))
                 FlagF_g.to_pickle(os.path.join(output_dir, f"{file_prefix}_FlagF_g.pkl"))
                 flag_wd.to_pickle(os.path.join(output_dir, f"{file_prefix}_flag_wd.pkl"))
-                
+
                 # Save arrays
                 np.save(os.path.join(output_dir, f"{file_prefix}_FlagVM_w.npy"), FlagVM_w)
                 np.save(os.path.join(output_dir, f"{file_prefix}_FlagVM_T.npy"), FlagVM_T)
                 np.save(os.path.join(output_dir, f"{file_prefix}_FlagVM_g.npy"), FlagVM_g)
-                
+
             # Save scalar values in a JSON file
             scalar_values = {
                 'nspec': nspec,
@@ -757,12 +756,12 @@ def FREQCOR_Read_EP(config, jsite):
             }
             with open(os.path.join(output_dir, f"{file_prefix}_scalar_values.json"), 'w') as f:
                 json.dump(scalar_values, f)
-                
+
             print(f"Successfully saved processed data to {output_dir}")
-            
+
             # Save a metadata file with information about what was saved
-            # vitale files but only if the option is activated: 
-                
+            # vitale files but only if the option is activated:
+
                     # f"{file_prefix}_FlagF_H_vitale.pkl",
                     # f"{file_prefix}_FlagF_g_vitale.pkl",
                     # f"{file_prefix}_FlagVM_w_vitale.npy",
@@ -796,10 +795,10 @@ def FREQCOR_Read_EP(config, jsite):
             }
             with open(os.path.join(output_dir, f"{file_prefix}_metadata.json"), 'w') as f:
                 json.dump(metadata, f, indent=4)
-                
+
         except Exception as e:
             print(f"Error saving processed data: {e}")
-    
+
     del freqm
     del FlagVM_do
     del FlagVM_skh
