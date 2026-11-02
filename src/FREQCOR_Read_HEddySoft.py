@@ -48,7 +48,7 @@ def _filtering(HF5, HD5, KID, DIP, DDI, SST_M98, ITC_w, OOR_w):
     base_thresholds = {
         'HF5': 4,
         'HD5': 4,
-        # ignore for the moment
+        # ignore for the moment because filters ca. 50% of data
         # 'KID': 50,
         'KID': 1000,
         # way to ground this threshold because not used by the carbon portal;
