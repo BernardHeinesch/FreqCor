@@ -69,13 +69,14 @@ References & Documentation:
 - For issues or contributions, visit the project repository.
 
 Created: June 28, 2022
-Last updated: August 28, 2025
+Last updated: November 11, 2026
 """
 
 # %% Package and functions import
 import os
 import glob
 import time
+import warnings
 import pandas as pd
 import argparse
 import sys
@@ -89,22 +90,23 @@ from FREQCOR_LUT_cof import FREQCORLUTCofError
 from FREQCOR_LUT_CF import FREQCORLUTCFError
 import configparser
 
+warnings.filterwarnings(
+    "ignore",
+    message=r".*DataFrame\.swapaxes.*deprecated.*",
+    category=FutureWarning,
+)
+
 ## MANUAL MODE ##
 # Runs the code directly with the .ini file provided.
 # Insert ini file to be processed
 manual = True
-if manual == True:
-    ini_file = r"..\examples\metadata\FREQCOR_config_example.ini"
-
+if manual == True and __name__ == "__main__":
+    ini_file = r"..\examples\metadata\FREQCOR_config_example_EddyPro.ini"
     ini_file = ini_file.strip().strip('"')
     if not ini_file:
         raise ValueError('Please set ini_file to a valid .ini path (paste the full path as a raw string).')
 
-    if os.path.isabs(ini_file):
-        ini_file = os.path.normpath(ini_file)
-    else:
-        _src_dir = os.path.dirname(os.path.abspath(__file__))
-        ini_file = os.path.normpath(os.path.join(_src_dir, ini_file))
+    ini_file = os.path.normpath(ini_file)
 
     if not os.path.isfile(ini_file):
         raise FileNotFoundError(f"INI file not found: {ini_file}")
@@ -115,7 +117,8 @@ if manual == True:
         raise ValueError(f"Invalid INI: failed to load or missing [IO] section: {ini_file}")
 
     repo_root = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
-    for key in ['input_path', 'input_path_sp', 'massman_path', 'vitale_path', 'output_path']:
+    for key in ['binned_cosp', 'flx_meteo', 'rh_path',
+                'massman_path', 'vitale_path', 'output_path']:
         if not config.has_option('IO', key):
             continue
         val = config.get('IO', key)
@@ -193,7 +196,8 @@ def process_ini_files(ini_files, results_dir, label):
 
         if config.has_section('IO'):
             repo_root = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
-            for key in ['input_path', 'input_path_sp', 'massman_path', 'vitale_path', 'output_path']:
+            for key in ['binned_cosp', 'flx_meteo', 'rh_path',
+                'massman_path', 'vitale_path', 'output_path']:
                 if not config.has_option('IO', key):
                     continue
                 val = config.get('IO', key)

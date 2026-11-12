@@ -1,5 +1,13 @@
+# FREQCOR runtime dependencies (Python >= 3.9)
 numpy>=1.23,<3
+# pandas is capped at <3: DataFrame.swapaxes is used downstream and was
+# removed in pandas 3.0 (a FutureWarning is currently suppressed in
+# FREQCOR_Start.py until the call site is resolved)
 pandas>=1.5,<3
 scipy>=1.9,<2
 matplotlib>=3.6,<4
 h5py>=3.8,<4
+
+# Note: tools/FREQCOR_ini_gui.py (INI configurator) requires tkinter.
+# tkinter ships with standard CPython installers on Windows/macOS;
+# on Linux install the system package (e.g. `sudo apt install python3-tk`).

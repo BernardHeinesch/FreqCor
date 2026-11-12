@@ -121,7 +121,10 @@ def FREQCOR_Sel_cof(Icon_sel, Rcon_sel, freq, gss, sps, meteo_df, Hlim,
     if sps == 1:
         flagged = flagged | (FlagVM_w > FVM)
     
-    flag_mask = pd.Series(~flagged,index=Icon_cof.columns)
+    # flags arrive as ndarrays after FREQCOR_Sel_general (and as Series in
+    # some readers): np.asarray handles both
+    flag_mask = pd.Series(~np.asarray(flagged, dtype=bool),
+                          index=Icon_cof.columns)
     
     # Absolue values outliers mask
     mask_i = Icon_cof.ge(-cospec_abs_limit).all() & Icon_cof.le(cospec_abs_limit).all()
@@ -220,7 +223,7 @@ def FREQCOR_Sel_cof(Icon_sel, Rcon_sel, freq, gss, sps, meteo_df, Hlim,
         )
     
     if Icon_cof.isnull().sum().sum() == Icon_cof.size:
-        raise FREQCORSelCofError('No (co)spectra after cof filtering')
+        raise FREQCORSelCofError('No (co)spectra after cof filtering. Exapnd your dataset or relax your filtering criteria')
         
         
     return Icon_cof, Rcon_cof

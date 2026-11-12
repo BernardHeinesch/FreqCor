@@ -7,6 +7,7 @@ Validation functions for FREQCOR configuration parameters
 import os
 import glob
 import datetime
+import pandas as pd
 
 def validate_config(config):
     """
@@ -77,20 +78,23 @@ def validate_config(config):
         hl_cf_abs_max = float(config['USER_LIMITS']['hl_cf_abs_max'])
         
         # Plot options
-        plot_hh = int(config['PROCEDURE_OPTIONS']['plot_hh'])
-        plot_save = int(config['PROCEDURE_OPTIONS']['plot_save'])
-
-        plot_main = int(config['PROCEDURE_OPTIONS']['plot_main'])
-        plot_aux = int(config['PROCEDURE_OPTIONS']['plot_aux'])
+        plot_hh = int(config['PLOTS']['plot_hh'])
+        plot_save = int(config['PLOTS']['plot_save'])
+        plot_main = int(config['PLOTS']['plot_main'])
+        plot_aux = int(config['PLOTS']['plot_aux'])
         vitale_qc_flags = int(config['PROCEDURE_OPTIONS']['vitale_qc_flags'])
+        rh_from_file = int(config['PROCEDURE_OPTIONS'].get('rh_from_file', 0))
         
         # Paths
         outputpath = config['IO']['output_path']
-        input_path = config['IO']['input_path']
-        input_path_sp = config['IO']['input_path_sp']
-        flx_meteo = config['IO']['flx_meteo']
+        flx_meteo = config['IO'].get('flx_meteo', '')
         binned_cosp = config['IO']['binned_cosp']
-        vitale_path = config['IO']['vitale_path']
+        # vitale_path and rh_path are only used by FREQCOR_Read_EP
+        if read_routine == 'FREQCOR_Read_EP':
+            if vitale_qc_flags == 1:
+                vitale_path = config['IO']['vitale_path']
+            if rh_from_file == 1:
+                rh_path = config['IO']['rh_path']
         
     except KeyError as e:
         valid = False
@@ -186,41 +190,88 @@ def validate_config(config):
     )
 
     # Validate input paths and expected files
-    if not os.path.isdir(input_path):
-        valid = False
-        errors.append(f"input_path does not exist or is not a directory: {input_path}")
-    else:
-        expected_flux_files = glob.glob(os.path.join(input_path, f"*{flx_meteo}*.csv"))
+    if read_routine == 'FREQCOR_Read_EP':
+        expected_flux_files = glob.glob(flx_meteo)
         if len(expected_flux_files) == 0:
             valid = False
+            errors.append(f"No input flux/meteo CSV found matching flx_meteo pattern: {flx_meteo}")
+        elif len(expected_flux_files) > 1:
+            valid = False
             errors.append(
-                f"No input flux/meteo CSV found in input_path='{input_path}' matching pattern '*{flx_meteo}*.csv'"
+                f"Multiple input flux/meteo CSV files found matching flx_meteo pattern: {flx_meteo} ({len(expected_flux_files)} matches)"
             )
 
-    if not os.path.isdir(input_path_sp):
+    expected_binned_files = glob.glob(binned_cosp)
+    if len(expected_binned_files) == 0:
         valid = False
-        errors.append(f"input_path_sp does not exist or is not a directory: {input_path_sp}")
-    else:
-        expected_binned_files = glob.glob(os.path.join(input_path_sp, f"*{binned_cosp}*"))
-        if len(expected_binned_files) == 0:
-            expected_binned_files = glob.glob(
-                os.path.join(input_path_sp, 'eddypro_binned_cospectra', f"*{binned_cosp}*")
-            )
-        if len(expected_binned_files) == 0:
+        errors.append(f"No binned cospectra file found matching binned_cosp pattern: {binned_cosp}")
+
+    if read_routine == 'FREQCOR_Read_EP' and vitale_qc_flags == 1:
+        vitale_csv_files = glob.glob(vitale_path)
+        if len(vitale_csv_files) == 0:
+            valid = False
+            errors.append(f"vitale_qc_flags=1 but no Vitale QC CSV found matching vitale_path pattern: {vitale_path}")
+        elif len(vitale_csv_files) > 1:
             valid = False
             errors.append(
-                f"No binned cospectra file found in input_path_sp='{input_path_sp}' matching pattern '*{binned_cosp}*' (also checked 'eddypro_binned_cospectra/' subfolder)"
+                f"vitale_qc_flags=1 but multiple Vitale QC CSV files found matching vitale_path pattern: {vitale_path} ({len(vitale_csv_files)} matches)"
             )
-
-    if vitale_qc_flags == 1:
-        if not os.path.isdir(vitale_path):
-            valid = False
-            errors.append(f"vitale_qc_flags=1 but vitale_path does not exist or is not a directory: {vitale_path}")
         else:
-            vitale_csv_files = glob.glob(os.path.join(vitale_path, "*.csv"))
-            if len(vitale_csv_files) == 0:
+            try:
+                vitale_cols = pd.read_csv(vitale_csv_files[0], nrows=0).columns
+                missing_cols = []
+                required_cols = [
+                    'TIMESTAMP_END',
+                    'H_SSITC_TEST',
+                    'H_DATA_FLAG',
+                    'WSECT_FLAG',
+                ]
+                if gss == 1:
+                    required_cols.extend(['FC_SSITC_TEST', 'NEE_DATA_FLAG'])
+                elif gss == 2:
+                    required_cols.extend(['LE_SSITC_TEST', 'LE_DATA_FLAG'])
+                for col in required_cols:
+                    if col not in vitale_cols:
+                        missing_cols.append(col)
+                if missing_cols:
+                    valid = False
+                    errors.append(
+                        "vitale_qc_flags=1 but Vitale/ICOS FLUX_L2 CSV is missing required column(s): "
+                        + ", ".join(missing_cols)
+                    )
+            except Exception as e:
                 valid = False
-                errors.append(f"vitale_qc_flags=1 but no CSV file found in vitale_path='{vitale_path}'")
+                errors.append(f"Could not read Vitale/ICOS FLUX_L2 CSV header to validate columns: {e}")
+
+    if rh_from_file not in [0, 1]:
+        valid = False
+        errors.append("PROCEDURE_OPTIONS.rh_from_file must be 0 or 1")
+    elif rh_from_file == 1 and read_routine == 'FREQCOR_Read_EP':
+        rh_csv_files = glob.glob(rh_path)
+        if len(rh_csv_files) == 0:
+            valid = False
+            errors.append(f"rh_from_file=1 but no RH CSV found matching rh_path pattern: {rh_path}")
+        elif len(rh_csv_files) > 1:
+            valid = False
+            errors.append(
+                f"rh_from_file=1 but multiple RH CSV files found matching rh_path pattern: {rh_path} ({len(rh_csv_files)} matches)"
+            )
+        else:
+            try:
+                rh_cols = pd.read_csv(rh_csv_files[0], nrows=0).columns
+                missing_cols = []
+                if 'TIMESTAMP_END' not in rh_cols:
+                    missing_cols.append('TIMESTAMP_END')
+                if 'RH' not in rh_cols:
+                    missing_cols.append('RH')
+                if missing_cols:
+                    valid = False
+                    errors.append(
+                        "rh_from_file=1 but RH CSV is missing required column(s): " + ", ".join(missing_cols)
+                    )
+            except Exception as e:
+                valid = False
+                errors.append(f"Could not read RH CSV header to validate columns: {e}")
 
     # Validate TIME_WINDOW
     if 'TIME_WINDOW' in config:
@@ -318,9 +369,27 @@ def validate_config(config):
                             )
 
     # Validate read_routine
-    if read_routine not in ['FREQCOR_Read_EP', 'FREQCOR_Read_TOF']:
+    if read_routine not in ['FREQCOR_Read_EP', 'FREQCOR_Read_GEddySoft']:
         valid = False
-        errors.append("read_routine must be one of: FREQCOR_Read_EP, FREQCOR_Read_TOF")
+        errors.append("read_routine must be one of: FREQCOR_Read_EP, FREQCOR_Read_GEddySoft")
+
+    # GEddySoft-specific checks
+    if read_routine == 'FREQCOR_Read_GEddySoft':
+        src_type = config['IO'].get('source_type', '').strip().lower()
+        if src_type not in ('irga', 'tof', 'tracer'):
+            valid = False
+            errors.append("IO.source_type must be 'irga' or 'tof' "
+                          "when read_routine = FREQCOR_Read_GEddySoft")
+        target_mz_str = config['IO'].get('target_mz', '').strip()
+        if src_type in ('tof', 'tracer') and not target_mz_str:
+            valid = False
+            errors.append("IO.target_mz is required when source_type = 'tof'")
+        elif target_mz_str:
+            try:
+                float(target_mz_str)
+            except ValueError:
+                valid = False
+                errors.append(f"IO.target_mz must be a number (got '{target_mz_str}')")
     
     return valid, errors
 

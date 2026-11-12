@@ -13,7 +13,7 @@ sys.path.insert(0, _SRC)
 
 project = 'FREQCOR'
 author = 'FREQCOR contributors'
-release = '1.4'
+release = '1.5'
 
 # -- General configuration ---------------------------------------------------
 
@@ -70,46 +70,58 @@ html_css_files = [
     'custom.css',
 ]
 _EXAMPLES_OUTPUT = os.path.abspath(os.path.join(_HERE, "..", "..", "examples", "output"))
+_STATIC_OUTPUTS = os.path.join(_HERE, "_static", "example_outputs")
 html_extra_path = [_EXAMPLES_OUTPUT] if os.path.exists(_EXAMPLES_OUTPUT) else []
+
+# Directories searched (in priority order) for example output images.
+# The URL prefix is relative to the built HTML root: files under
+# examples/output are copied to the root via html_extra_path, while files under
+# _static/example_outputs keep their _static path.
+_EXAMPLE_IMAGE_DIRS = [
+    (_EXAMPLES_OUTPUT, ''),
+    (_STATIC_OUTPUTS, '_static/example_outputs/'),
+]
 
 
 def _latest_example_output(pattern):
-    """Return the newest matching example output filename (basename).
+    """Return the newest matching example output image, URL-path included.
 
-    Selection strategy:
+    Searches _EXAMPLE_IMAGE_DIRS in order; returns '' when nothing matches.
+    Selection strategy within a directory:
     - Prefer parsing the run timestamp suffix '__YYMMDDTHHMM' if present.
     - Fallback to file modification time.
     """
-    if not os.path.isdir(_EXAMPLES_OUTPUT):
-        return ''
-    matches = glob.glob(os.path.join(_EXAMPLES_OUTPUT, pattern))
-    if not matches:
-        return ''
+    for directory, url_prefix in _EXAMPLE_IMAGE_DIRS:
+        if not os.path.isdir(directory):
+            continue
+        matches = glob.glob(os.path.join(directory, pattern))
+        if not matches:
+            continue
+        ts_re = re.compile(r'__(\d{6}T\d{4})\.')
 
-    ts_re = re.compile(r'__(\d{6}T\d{4})\.')
+        def _sort_key(p):
+            base = os.path.basename(p)
+            m = ts_re.search(base)
+            ts = m.group(1) if m else ''
+            mtime = 0.0
+            try:
+                mtime = os.path.getmtime(p)
+            except Exception:
+                pass
+            return (ts, mtime)
 
-    def _sort_key(p):
-        base = os.path.basename(p)
-        m = ts_re.search(base)
-        ts = m.group(1) if m else ''
-        mtime = 0.0
-        try:
-            mtime = os.path.getmtime(p)
-        except Exception:
-            pass
-        return (ts, mtime)
-
-    return os.path.basename(sorted(matches, key=_sort_key)[-1])
+        return url_prefix + os.path.basename(sorted(matches, key=_sort_key)[-1])
+    return ''
 
 
 myst_substitutions = {
-    'ex_2_all_individual_co2': _latest_example_output('2_all_individual_co2__BE-Lon__co2__cosp__all__*.png'),
-    'ex_3_filtering_cof_gas': _latest_example_output('3_filtering_cof_gas__BE-Lon__co2__cosp__all__*.png'),
-    'ex_3_filtering_cf_h_unst': _latest_example_output('3_filtering_CF_H_unst__BE-Lon__co2__cosp__all__*.png'),
-    'ex_4_mean_tf_all_classes': _latest_example_output('4_mean_TF_all_classes__wd1__BE-Lon__co2__cosp__all__*.png'),
-    'ex_4_mean_cosp_all_classes': _latest_example_output('4_mean_cosp_all_classes__wd1__BE-Lon__co2__cosp__all__*.png'),
-    'ex_5_cf_vs_ws_st': _latest_example_output('5_CF_vs_ws__st__BE-Lon__co2__cosp__all__*.png'),
-    'ex_5_cf_vs_ws_unst': _latest_example_output('5_CF_vs_ws__unst__BE-Lon__co2__cosp__all__*.png'),
+    'ex_2_all_individual_co2': _latest_example_output('2_all_individual_co2__BE-Lon__co2__cosp__*.png'),
+    'ex_3_filtering_cof_gas': _latest_example_output('3_filtering_cof_gas__BE-Lon__co2__cosp__*.png'),
+    'ex_3_filtering_cf_h_unst': _latest_example_output('3_filtering_CF_H_unst__BE-Lon__co2__cosp__*.png'),
+    'ex_4_mean_tf_all_classes': _latest_example_output('4_mean_TF_all_classes__wd1__BE-Lon__co2__cosp__*.png'),
+    'ex_4_mean_cosp_all_classes': _latest_example_output('4_mean_cosp_all_classes__wd1__BE-Lon__co2__cosp__*.png'),
+    'ex_5_cf_vs_ws_st': _latest_example_output('5_CF_vs_ws__st__BE-Lon__co2__cosp__*.png'),
+    'ex_5_cf_vs_ws_unst': _latest_example_output('5_CF_vs_ws__unst__BE-Lon__co2__cosp__*.png'),
 }
 
 
