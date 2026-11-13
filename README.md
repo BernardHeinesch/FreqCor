@@ -39,9 +39,10 @@ pip install -r requirements.txt
 
 ## Quick start
 
-1. Use the example configuration:
+1. Use one of the example configurations (same dataset, two input formats):
 
-   `examples/metadata/FREQCOR_config_example.ini`
+   - `examples/metadata/FREQCOR_config_example_EddyPro.ini` (EddyPro inputs)
+   - `examples/metadata/FREQCOR_config_example_GEddySoft.ini` (GEddySoft inputs)
 
 2. Run the entry point:
 
@@ -51,11 +52,11 @@ pip install -r requirements.txt
 
 Outputs are written under `examples/output/` (or under the `output_path` configured in the INI file).
 
-## Example dataset
+## Example datasets
 
-The repository ships with an example dataset from the ICOS Lonzee station (BE-Lon). It includes EddyPro-generated inputs covering two spring months of 2024 over a winter wheat crop.
+The repository ships with two example datasets from the ICOS Lonzée station (BE-Lon), covering the **same time window** — two spring months of 2024 over a winter wheat crop — processed with two different flux software: **EddyPro** and **GEddySoft**.
 
-The example INI file is configured for a **CO2 cospectral** run on this dataset.
+Both example INI files are configured for a **CO2 cospectral** run, making it easy to compare the two input formats on identical data.
 
 ## Description
 

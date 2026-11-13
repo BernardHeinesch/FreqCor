@@ -4,18 +4,17 @@ Main routine entry point for running the FREQCOR processing chain.
 
 """
 # Custom exception class for FREQCOR_Main errors
-from datetime import datetime
-import numpy as np
-import pandas as pd
 from FREQCOR_Compute import FREQCOR_Compute
 from FREQCOR_Flux import FREQCOR_Flux
 from FREQCOR_Read_EP import FREQCOR_Read_EP
-from FREQCOR_Read_TOF import FREQCOR_Read_TOF
 from FREQCOR_Read_GEddySoft import FREQCOR_Read_GEddySoft
 from FREQCOR_Read_HEddySoft import FREQCOR_Read_HEddySoft
 from FREQCOR_Sel_general import FREQCOR_Sel_general
 from FREQCOR_validate import print_validation_results, validate_config
 from FREQCOR_write_outputs import FREQCOR_write_outputs
+from datetime import datetime
+import numpy as np
+import pandas as pd
 
 
 class FREQCORMainError(Exception):
@@ -69,6 +68,16 @@ def FREQCOR_Main(config):
     jsite = config['EC_SETUP']['jsite']
     gss = int(config['PROCEDURE_OPTIONS']['gss'])
     sps = int(config['PROCEDURE_OPTIONS']['sps'])
+    read_routine = config['IO'].get('read_routine', None)
+    if not read_routine:
+        read_routine = config['PROCEDURE_OPTIONS'].get('read_routine', 'FREQCOR_Read_EP')
+    source_type = config['IO'].get('source_type', 'irga')
+    tof_mode = (read_routine == 'FREQCOR_Read_GEddySoft'
+                and source_type == 'tof')
+    if tof_mode:
+        # GEddySoft TOF mode: the corrected species is a VOC selected by
+        # target_mz; force the non-H2O branch, gss is not used.
+        gss = 0
     zmeas = float(config['EC_SETUP']['zmeas'])
     disph = float(config['EC_SETUP']['disph'])
     rsz = float(config['EC_SETUP']['rsz'])
@@ -92,10 +101,10 @@ def FREQCOR_Main(config):
     tfmin_hz = float(config['USER_LIMITS']['tfmin'])
     tfmax_hz = float(config['USER_LIMITS']['tfmax'])
     plot = [
-        int(config['PROCEDURE_OPTIONS']['plot_hh']),
-        int(config['PROCEDURE_OPTIONS']['plot_main']),
-        int(config['PROCEDURE_OPTIONS']['plot_aux']),
-        int(config['PROCEDURE_OPTIONS']['plot_save']),
+        int(config['PLOTS']['plot_hh']),
+        int(config['PLOTS']['plot_main']),
+        int(config['PLOTS']['plot_aux']),
+        int(config['PLOTS']['plot_save']),
     ]
 
     outputpath = config['IO']['output_path']
@@ -124,11 +133,6 @@ def FREQCOR_Main(config):
     tf_peltola = int(config['PROCEDURE_OPTIONS']['tf_peltola'])
     eq = int(config['PROCEDURE_OPTIONS']['eq'])
 
-    read_routine = config['IO'].get('read_routine', None)
-    if not read_routine:
-        read_routine = config['PROCEDURE_OPTIONS'].get('read_routine',
-                                                       'FREQCOR_Read_EP')
-
     if gss==2:
         classnum_first=int(config['PROCEDURE_OPTIONS']['classnumrh'])
     else:
@@ -155,13 +159,10 @@ def FREQCOR_Main(config):
          meteo_df, WS, WD, Ustar, Zeta, FlagF_H, FlagF_g, FlagVM_w, FlagVM_T,
          FlagVM_g, flag_wd, massman_coef) = FREQCOR_Read_EP(config, jsite)
 
-    elif read_routine.lower() in ['freqcor_read_tof',
-                                  'freqcor_read_geddysoft',
+    elif read_routine.lower() in ['freqcor_read_geddysoft',
                                   'freqcor_read_heddysoft']:
-        
-        if read_routine.lower() == 'freqcor_read_tof':
-            readfunc = FREQCOR_Read_TOF
-        elif read_routine.lower() == 'freqcor_read_geddysoft':
+
+        if read_routine.lower() == 'freqcor_read_geddysoft':
             readfunc = FREQCOR_Read_GEddySoft
         elif read_routine.lower() == 'freqcor_read_heddysoft':
             readfunc = FREQCOR_Read_HEddySoft

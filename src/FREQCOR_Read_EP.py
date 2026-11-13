@@ -93,8 +93,6 @@ def FREQCOR_Read_EP(config, jsite):
     """
 
     # Extract variables
-    dirname = config['IO']['input_path']
-    dirname_sp = config['IO']['input_path_sp']
     massmanpath = config['IO']['massman_path']
     fcname = config['IO']['binned_cosp']
     foname = config['IO']['flx_meteo']
@@ -103,6 +101,9 @@ def FREQCOR_Read_EP(config, jsite):
     output_path = config['IO']['output_path']
     output_pattern = config['IO']['output_file']
     vitale_qc_flags = int(config['PROCEDURE_OPTIONS']['vitale_qc_flags'])
+    rh_from_file = int(config['PROCEDURE_OPTIONS'].get('rh_from_file', 0))
+    if rh_from_file == 1:
+        rh_path = config['IO']['rh_path']
     if vitale_qc_flags == 1:
         vitale_path = config['IO']['vitale_path']
     #%% Load data
@@ -279,7 +280,7 @@ def FREQCOR_Read_EP(config, jsite):
 
     # Read fluxes, weather and qc data.
     # fluxes and weather data
-    fileb = glob.glob(os.path.join(dirname,'*'+foname+'*_adv*.csv'))[0]
+    fileb = glob.glob(foname)[0]
     with open(fileb, mode='r') as file:
         meteo_data = pd.read_csv(file, header=1, na_values="-9999", skiprows=[2],
                                  low_memory=False, memory_map=True)
@@ -294,8 +295,7 @@ def FREQCOR_Read_EP(config, jsite):
 
     if vitale_qc_flags == 1:
         try:
-            qc_files = glob.glob(os.path.join(vitale_path, jsite + '_vitale_qc_flags*.csv'))
-            filec = qc_files[0]
+            filec = glob.glob(vitale_path)[0]
             with open(filec, mode='r') as file:
                 flag_data = pd.read_csv(
                     file,
@@ -309,6 +309,29 @@ def FREQCOR_Read_EP(config, jsite):
             print(f"Error reading Vitale QC details file: {e}. Will switch to EddyPro output flags.")
             vitale_qc_flags = 0
 
+    if rh_from_file == 1:
+        file_rh = glob.glob(rh_path)[0]
+        with open(file_rh, mode='r') as file:
+            rh_data = pd.read_csv(
+                file,
+                header=0,
+                dtype={"TIMESTAMP_END": str},
+                na_values=["-9999", "-999"],
+                low_memory=False,
+                memory_map=True,
+            )
+        _ts = rh_data['TIMESTAMP_END'].astype(str).str.strip()
+        _mask_compact = _ts.str.fullmatch(r"\d{12}")
+        _parsed = pd.to_datetime(_ts, errors='coerce')
+        if _mask_compact.any():
+            _parsed.loc[_mask_compact] = pd.to_datetime(
+                _ts.loc[_mask_compact],
+                format='%Y%m%d%H%M',
+                errors='coerce',
+            )
+        rh_data['TIMESTAMP_END'] = _parsed
+        rh_data['datetime'] = rh_data['TIMESTAMP_END']
+
     # Remove missing data rows
     meteo_data = meteo_data[meteo_data.filename != 'not_enough_data']
     # flag_data = flag_data[flag_data.filename[:] != 'not_enough_data']
@@ -316,11 +339,11 @@ def FREQCOR_Read_EP(config, jsite):
     # flag_data = flag_data.reset_index(drop=True)
 
     # Filter by time window if enabled
-    all_cospectra_files = glob.glob(os.path.join(dirname_sp,'eddypro_binned_cospectra','*' + fcname + '*_adv.csv'))
+    all_cospectra_files = glob.glob(fcname)
     filtered_cospectra_files = all_cospectra_files.copy()
     if enable_time_window == 1:
         meteo_data = meteo_data[(meteo_data['datetime'] >= start_datetime) &
-                              (meteo_data['datetime'] <= end_datetime)]
+                                (meteo_data['datetime'] <= end_datetime)]
         # flag_data = flag_data[(flag_data['datetime'] >= start_datetime) &
         #                     (flag_data['datetime'] <= end_datetime)]
         # meteo_data = meteo_data.reset_index(drop=True)
@@ -379,6 +402,14 @@ def FREQCOR_Read_EP(config, jsite):
         # to do: do not reset index and keep datetime indexing when possible
         flag_data = (
             flag_data
+            .set_index('datetime')
+            .loc[meteo_data['datetime']]
+            .reset_index()
+        )
+
+    if rh_from_file == 1:
+        rh_data = (
+            rh_data
             .set_index('datetime')
             .loc[meteo_data['datetime']]
             .reset_index()
@@ -537,6 +568,8 @@ def FREQCOR_Read_EP(config, jsite):
     meteo_data = meteo_data.loc[valid_ts,:]
     if vitale_qc_flags == 1:
         flag_data = flag_data.loc[valid_ts,:]
+    if rh_from_file == 1:
+        rh_data = rh_data.loc[valid_ts,:]
 
     # match boolean index to (co)spectra dataframes column names
     valid_ts.index = Icosbrut.columns
@@ -602,6 +635,8 @@ def FREQCOR_Read_EP(config, jsite):
     meteo_data = meteo_data.reset_index(drop=True)
     if vitale_qc_flags == 1:
         flag_data = flag_data.reset_index(drop=True)
+    if rh_from_file == 1:
+        rh_data = rh_data.reset_index(drop=True)
 
     # Rename variables
     H=meteo_data.loc[:,'H'].copy()                                   # Sensible heat
@@ -610,7 +645,10 @@ def FREQCOR_Read_EP(config, jsite):
         FcEP=(meteo_data.loc[:,'co2_flux'].copy()).rename('FcEP')    # CO2 Flux (EddyPro corrected)
         LE=(meteo_data.loc[:,'un_LE'].copy()).rename('LE')           # Latent heat (uncorrected)
         LEEP=(meteo_data.loc[:,'LE'].copy()).rename('LEEP')          # Latent heat (EP corrected)
-        RH=meteo_data.loc[:,'RH'].copy()                             # Relative humidity
+        if rh_from_file == 1:
+            RH = rh_data.loc[:, 'RH'].copy()
+        else:
+            RH=meteo_data.loc[:,'RH'].copy()                             # Relative humidity
         meteo_df = pd.concat([H,Fc,FcEP,LE,LEEP,RH],axis=1)
     elif gss==3 :
         Fc=(meteo_data.loc[:,'un_o3_flux'].copy()).rename('Fc')      # O3 flux (uncorrected)

@@ -95,7 +95,8 @@ def FREQCOR_Sel_CF(Icos_CF, freq, sts, meteo_df, Hlcfu, Hlcfs,
         (FlagF_H > FF) 
     )
     
-    flag_mask = pd.Series(~flagged, index=Icos_CF_filt.columns, dtype=bool)
+    flag_mask = pd.Series(~np.asarray(flagged, dtype=bool),
+                          index=Icos_CF_filt.columns)
     
     valid_mask = flux_mask & flag_mask
     Icos_CF_filt.iloc[:, ~valid_mask] = np.nan

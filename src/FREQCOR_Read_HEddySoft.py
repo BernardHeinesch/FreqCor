@@ -91,11 +91,7 @@ def FREQCOR_Read_HEddySoft(config, jsite):
 
     # get spectral file
 
-    input_path = config['IO']['input_path']
     input_file = config['IO']['binned_cosp']
-    if not (input_file.startswith('/') or (input_file[1] == ':')):
-        input_file = f'{input_path}/{input_file}'
-
     if not os.path.exists(input_file):
         raise ValueError(f'Input file does not exists: {input_file}')
 
@@ -264,6 +260,12 @@ def FREQCOR_Read_HEddySoft(config, jsite):
         # Use the first column as the time axis
         time = sdf.index
 
+        # Column plotted as "gas flux": LE for H2O (gss=2), Fc otherwise
+        gas_col = 'LE' if ispecies == 2 else 'Fc'
+        # User limits used for the reference lines (from [USER_LIMITS])
+        hlim = float(config['USER_LIMITS']['hl_cof_min'])
+        fclim = float(config['USER_LIMITS'][f'{gas_col.lower()}l_cof_min'])
+
         fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(16, 8),
                                  sharex=True, sharey=False)
 
@@ -293,64 +295,64 @@ def FREQCOR_Read_HEddySoft(config, jsite):
                         label='90th percentile')
         axes[0].axhline(y=-percentile_90, color='red', linestyle='--',
                         label='-90th percentile')
-        axes[0].axhline(y=float(config['USER_LIMITS']['hlim']), color='green',
-                        linestyle='--', label='user limit')
+        axes[0].axhline(y=hlim, color='green', linestyle='--',
+                        label='user limit')
         axes[0].set_title('H flux')
         axes[0].legend()
         axes[0].set_xlabel('Time')
         axes[0].set_ylabel('H')
 
         # Second subplot: gas flux
-        axes[1].scatter(time, sdf.loc[:, 'Fc'], s=10, color='black',
+        axes[1].scatter(time, sdf.loc[:, gas_col], s=10, color='black',
                         label='Fgas flux')
         axes[1].scatter(
             time[FlagF_H > 0],
-            sdf.loc[(FlagF_H > int(config['USER_LIMITS']['ff'])).values, 'Fc'],
+            sdf.loc[(FlagF_H > int(config['USER_LIMITS']['ff'])).values, gas_col],
             s=10, color='red',
             label=f'FlagF_H > {config["USER_LIMITS"]["ff"]}',
             alpha=0.7)
         axes[1].scatter(
             time[FlagF_g > 0],
-            sdf.loc[(FlagF_g > int(config['USER_LIMITS']['ff'])).values, 'Fc'],
+            sdf.loc[(FlagF_g > int(config['USER_LIMITS']['ff'])).values, gas_col],
             s=10, color='blue',
             label=f'FlagF_g > {config["USER_LIMITS"]["ff"]}',
             alpha=0.7)
         axes[1].scatter(
             time[FlagVM_w > 0],
-            sdf.loc[(FlagVM_w > int(config['USER_LIMITS']['fvm'])).values, 'Fc'],
+            sdf.loc[(FlagVM_w > int(config['USER_LIMITS']['fvm'])).values, gas_col],
             s=10, color='green',
             label=f'FlagVM_w > {config["USER_LIMITS"]["fvm"]}',
             alpha=0.7)
         axes[1].scatter(
             time[FlagVM_T > 0],
-            sdf.loc[(FlagVM_T > int(config['USER_LIMITS']['fvm'])).values, 'Fc'],
+            sdf.loc[(FlagVM_T > int(config['USER_LIMITS']['fvm'])).values, gas_col],
             s=10, color='purple',
             label=f'FlagVM_T > {config["USER_LIMITS"]["fvm"]}',
             alpha=0.7)
         axes[1].scatter(
             time[FlagVM_g > 0],
-            sdf.loc[(FlagVM_g > int(config['USER_LIMITS']['fvm'])).values, 'Fc'],
+            sdf.loc[(FlagVM_g > int(config['USER_LIMITS']['fvm'])).values, gas_col],
             s=10, color='orange',
             label=f'FlagVM_g > {config["USER_LIMITS"]["fvm"]}',
             alpha=0.7)
 
-        percentile_90 = np.percentile(abs(sdf.loc[:, 'Fc']), 90)
+        percentile_90 = np.percentile(abs(sdf.loc[:, gas_col]), 90)
         axes[1].axhline(y=percentile_90, color='red', linestyle='--',
                         label='90th percentile')
         axes[1].axhline(y=-percentile_90, color='red', linestyle='--',
                         label='-90th percentile')
-        axes[1].axhline(y=float(config['USER_LIMITS']['fclim']),
-                        color='green', linestyle='--', label='user limit')
-        axes[1].axhline(y=-float(config['USER_LIMITS']['fclim']),
-                        color='green', linestyle='--', label='user limit')
-        axes[1].set_title('Fgas flux')
+        axes[1].axhline(y=fclim, color='green', linestyle='--',
+                        label='user limit')
+        axes[1].axhline(y=-fclim, color='green', linestyle='--',
+                        label='user limit')
+        axes[1].set_title(f'{gas_col} flux')
         axes[1].legend()
         axes[1].set_xlabel('Time')
-        axes[1].set_ylabel('Fgas')
+        axes[1].set_ylabel(f'{gas_col}')
 
         plt.tight_layout()
 
-        if int(config['PROCEDURE_OPTIONS']['plot_save']) == 1:
+        if int(config['PLOTS']['plot_save']) == 1:
             plt.savefig(config['IO']['output_path'] + '/flux_filtering.png')
             plt.close()
         else:

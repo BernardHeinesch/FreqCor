@@ -33,8 +33,11 @@ pip install -r requirements.txt
 
 ## Quick sanity check
 
-After installation, you can run the example configuration shipped with the repository.
+After installation, you can perform the example runs shipped with the repository. Two example runs are available on the same dataset (ICOS Lonzée, BE-Lon), processed from two different input formats:
 
-- Example INI: `examples/metadata/FREQCOR_config_example.ini`
+- `examples/metadata/FREQCOR_config_example_EddyPro.ini` — EddyPro inputs
+- `examples/metadata/FREQCOR_config_example_GEddySoft.ini` — GEddySoft inputs
+
+Each can be run independently; together they let you compare the two input formats on identical data.
 
 The main entry point for batch/CLI runs is `src/FREQCOR_Start.py`.

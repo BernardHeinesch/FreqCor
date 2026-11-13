@@ -10,6 +10,7 @@ This section contains the detailed API documentation for FREQCOR.
    :template: custom-module-template.rst
    :recursive:
 
+   FREQCOR_Start
    FREQCOR_Main
    FREQCOR_Compute
    FREQCOR_Read_EP
