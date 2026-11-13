@@ -199,7 +199,8 @@ def process_ini_files(ini_files, results_dir, label):
 
         if config.has_section('IO'):
             repo_root = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
-            for key in ['input_path', 'input_path_sp', 'massman_path', 'vitale_path', 'output_path']:
+            for key in ['binned_cosp', 'flx_meteo', 'rh_path',
+                'massman_path', 'vitale_path', 'output_path']:
                 if not config.has_option('IO', key):
                     continue
                 val = config.get('IO', key)
