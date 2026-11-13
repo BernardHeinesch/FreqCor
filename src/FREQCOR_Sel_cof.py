@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 
 """Selection utilities for filtering (co)spectra used in cut-off frequency computation."""
 
@@ -14,7 +14,7 @@ class FREQCORSelCofError(Exception):
         self.message = message
         super().__init__(self.message)
 
-def FREQCOR_Sel_cof(Icon_sel, Rcon_sel, freq, gss, sps, meteo_df, Hlim, 
+def FREQCOR_Sel_cof(Icon_sel, Rcon_sel, freq, gss, sps, meteo_df, Hlim,
                     Fclim, LElim, Hlim_max, Fclim_max, LElim_max, FlagVM_T,
                     FlagVM_g, FlagVM_w, FlagF_H, FlagF_g, FVM, FF, outputpath,
                     plot, cospec_abs_limit, run_tag=None):
@@ -85,18 +85,18 @@ def FREQCOR_Sel_cof(Icon_sel, Rcon_sel, freq, gss, sps, meteo_df, Hlim,
         If all (co)spectra are filtered out.
     """
 
-    # (co)spectral absolute limit: if a single point of a hh (co)spectra if outside + or - this treshold, 
+    # (co)spectral absolute limit: if a single point of a hh (co)spectra if outside + or - this treshold,
     # the whole hh is set to nan
     Icon_cof = Icon_sel.copy()
     Rcon_cof = Rcon_sel.copy()
-   
+
     Icos_plot = Icon_sel.copy()
     Rcos_plot = Rcon_sel.copy()
-    
+
     # if not indexed with 1/2 h names yet:
     fluxes_df = meteo_df.copy()
-    fluxes_df.index = Icon_cof.columns 
-    
+    fluxes_df.index = Icon_cof.columns
+
     # Vectorized selection based on flux limits
     if gss != 2:
         flux_mask = (
@@ -110,7 +110,7 @@ def FREQCOR_Sel_cof(Icon_sel, Rcon_sel, freq, gss, sps, meteo_df, Hlim,
                     & (fluxes_df['LE'].abs().between(abs(LElim), abs(LElim_max)))
                 ).fillna(False)
         flux_col_gas = 'LE'
-    
+
     # Vectorized flag filtering (Vickers & Mahrt; Foken)
     flagged = (
         (FlagVM_T > FVM) |
@@ -120,30 +120,30 @@ def FREQCOR_Sel_cof(Icon_sel, Rcon_sel, freq, gss, sps, meteo_df, Hlim,
     )
     if sps == 1:
         flagged = flagged | (FlagVM_w > FVM)
-    
+
     # flags arrive as ndarrays after FREQCOR_Sel_general (and as Series in
     # some readers): np.asarray handles both
     flag_mask = pd.Series(~np.asarray(flagged, dtype=bool),
                           index=Icon_cof.columns)
-    
+
     # Absolue values outliers mask
     mask_i = Icon_cof.ge(-cospec_abs_limit).all() & Icon_cof.le(cospec_abs_limit).all()
     mask_r = Rcon_cof.ge(-cospec_abs_limit).all() & Rcon_cof.le(cospec_abs_limit).all()
-    
+
     # Overall validity mask
     valid_mask = flux_mask & flag_mask & mask_i & mask_r
-    
+
     Icon_cof.loc[:, ~valid_mask] = np.nan
     Rcon_cof.loc[:, ~valid_mask] = np.nan
 
-    keep_mask_i, stats_i = spectral_outlier_mask_iqr(Icon_cof.copy(), 
+    keep_mask_i, stats_i = spectral_outlier_mask_iqr(Icon_cof.copy(),
                                           freq,
                                        fmin=0.005,
                                        fmax=0.1,
                                        k=2.5,
                                        min_fraction=0.15,
                                        )
-    keep_mask_r, stats_r = spectral_outlier_mask_iqr(Rcon_cof.copy(), 
+    keep_mask_r, stats_r = spectral_outlier_mask_iqr(Rcon_cof.copy(),
                                           freq,
                                        fmin=0.005,
                                        fmax=0.1,
@@ -151,10 +151,10 @@ def FREQCOR_Sel_cof(Icon_sel, Rcon_sel, freq, gss, sps, meteo_df, Hlim,
                                        min_fraction=0.15,
                                        )
     iqr_mask = keep_mask_i & keep_mask_r
-    
-    Icon_cof.loc[:,~iqr_mask] = np.nan 
+
+    Icon_cof.loc[:,~iqr_mask] = np.nan
     Rcon_cof.loc[:,~iqr_mask] = np.nan
-    
+
     mask_history = [flux_mask,
              flag_mask,
              mask_i & mask_r,
@@ -163,12 +163,12 @@ def FREQCOR_Sel_cof(Icon_sel, Rcon_sel, freq, gss, sps, meteo_df, Hlim,
                   'VM and FF flags',
                   'Absolute (co)spectral value',
                   'IQR over frequency band']
-    
+
     if plot[2] == 1:
         if not run_tag:
             raise ValueError("run_tag is required for output naming")
         run_suffix = run_tag
-        
+
         step_plot_info = {
             "Flux thresholds (H and gas combined)": {
                 "flux_limits": [Hlim, Hlim_max]
@@ -180,8 +180,8 @@ def FREQCOR_Sel_cof(Icon_sel, Rcon_sel, freq, gss, sps, meteo_df, Hlim,
                 "iqr_stats": stats_i
             }
         }
-    
-        
+
+
         fqplt.plot_stepwise_filtering(
             mask_history=mask_history,
             step_names=step_names,
@@ -195,7 +195,7 @@ def FREQCOR_Sel_cof(Icon_sel, Rcon_sel, freq, gss, sps, meteo_df, Hlim,
             step_plot_info=step_plot_info,
             filename=f"3_filtering_cof_H__{run_suffix}.png",
         )
-        
+
         step_plot_info = {
             "Flux thresholds (H and gas combined)": {
                 "flux_limits": [Fclim, Fclim_max]
@@ -207,7 +207,7 @@ def FREQCOR_Sel_cof(Icon_sel, Rcon_sel, freq, gss, sps, meteo_df, Hlim,
                 "iqr_stats": stats_r
             }
         }
-    
+
         fqplt.plot_stepwise_filtering(
             mask_history=mask_history,
             step_names=step_names,
@@ -221,11 +221,10 @@ def FREQCOR_Sel_cof(Icon_sel, Rcon_sel, freq, gss, sps, meteo_df, Hlim,
             step_plot_info=step_plot_info,
             filename=f"3_filtering_cof_gas__{run_suffix}.png",
         )
-    
+
     if Icon_cof.isnull().sum().sum() == Icon_cof.size:
-        raise FREQCORSelCofError('No (co)spectra after cof filtering. Exapnd your dataset or relax your filtering criteria')
-        
-        
+        raise FREQCORSelCofError(
+            'No (co)spectra after cof filtering.'
+            ' Expand your dataset or relax your filtering criteria.')
+
     return Icon_cof, Rcon_cof
-
-

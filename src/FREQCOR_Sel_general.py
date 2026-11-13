@@ -1,19 +1,19 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 
 """General filtering utilities for (co)spectra and associated meteorological time series."""
 
 import numpy as np
 
-def FREQCOR_Sel_general(Icon_raw, Rcon_raw, Icosp_raw, meteo_df, WS, WD, 
-                        Ustar, Zeta,  FlagF_H, FlagF_g, FlagVM_T, 
+def FREQCOR_Sel_general(Icon_raw, Rcon_raw, Icosp_raw, meteo_df, WS, WD,
+                        Ustar, Zeta,  FlagF_H, FlagF_g, FlagVM_T,
                         FlagVM_w, FlagVM_g, flag_wd, config):
     """
     Apply general filtering to all (co)spectra and associated meteorological series.
-    
+
     The routine removes time steps with missing meteorology/fluxes and excludes wind
     direction sectors configured in `config['USER_LIMITS']`. Invalid columns in
     (co)spectral matrices are set to NaN.
-    
+
     Parameters
     ----------
     Icon_raw, Rcon_raw, Icosp_raw : pandas.DataFrame
@@ -59,7 +59,7 @@ def FREQCOR_Sel_general(Icon_raw, Rcon_raw, Icosp_raw, meteo_df, WS, WD,
     wdmax = float(config['USER_LIMITS']['wdmax'])
     wdmin = float(config['USER_LIMITS']['wdmin'])
     gss = int(config['PROCEDURE_OPTIONS']['gss'])
-    
+
     # Convert negative wind directions to 0-360° range
     if wdmin < 0:
         wdmin = wdmin + 360
@@ -70,19 +70,19 @@ def FREQCOR_Sel_general(Icon_raw, Rcon_raw, Icosp_raw, meteo_df, WS, WD,
     Icon_sel = Icon_raw.copy()
     Rcon_sel = Rcon_raw.copy()
     Icosp_sel = Icosp_raw.copy()
-    
+
     # Series to array of float
-    FlagF_g = FlagF_g.values 
-    FlagF_H = FlagF_H.values
-    
+    FlagF_g = FlagF_g.values.copy()
+    FlagF_H = FlagF_H.values.copy()
+
     # Remove data when H is absent
-    idx = FlagF_H==-9999
+    idx = FlagF_H == -9999
     meteo_df.loc[idx,'H'] = np.nan
-    meteo_df.loc[idx,'Fc']=np.nan
-    meteo_df.loc[idx,'FcEP']=np.nan
+    meteo_df.loc[idx,'Fc'] = np.nan
+    meteo_df.loc[idx,'FcEP'] = np.nan
     if gss == 1 or gss == 2:
-        meteo_df.loc[idx,'LE']=np.nan
-        meteo_df.loc[idx,'RH']=np.nan
+        meteo_df.loc[idx,'LE'] = np.nan
+        meteo_df.loc[idx,'RH'] = np.nan
 
     WS[idx]=np.nan
     WD[idx]=np.nan
@@ -93,7 +93,7 @@ def FREQCOR_Sel_general(Icon_raw, Rcon_raw, Icosp_raw, meteo_df, WS, WD,
         FlagF_g = FlagF_g.astype('float')
     if FlagF_H.dtype == 'int64' or FlagF_H.dtype == 'int32':
         FlagF_H = FlagF_H.astype('float')
-    
+
     FlagF_H[idx]=np.nan
     FlagF_g[idx]=np.nan
     FlagVM_T = FlagVM_T.astype('float')
@@ -104,32 +104,31 @@ def FREQCOR_Sel_general(Icon_raw, Rcon_raw, Icosp_raw, meteo_df, WS, WD,
     FlagVM_g[idx]=np.nan
 
     # Remove data with missing meteorological parameters
-    if gss != 2:    
+    if gss != 2:
         meteo_valid = meteo_df[['H','Fc','FcEP']].notna().all(axis=1) & WS.notna() & WD.notna() & Ustar.notna() & Zeta.notna()
         # meteo_valid = meteo_df.drop(columns="RH").notna().all(axis=1) & WS.notna() & WD.notna() & Ustar.notna() & Zeta.notna()
-    else: 
+    else:
         meteo_valid = meteo_df[['H','LE','LEEP','RH']].notna().all(axis=1) & WS.notna() & WD.notna() & Ustar.notna() & Zeta.notna()
     # Wind direction filter
     if wdmin <= wdmax:
         wd_exclude = (WD > wdmin) & (WD < wdmax)
     else:
         wd_exclude = (WD > wdmin) | (WD < wdmax)
-    
+
     # add etc-icos vitale wind direction flag. If the flag is not available,
-    # it is a Series full of nan: the boolean will be full of "False" and 
+    # it is a Series full of nan: the boolean will be full of "False" and
     # therefore the filtering will still be valid
     wd_exclude_vitale = flag_wd == 2
     # Combined valid mask
     valid_mask = np.array(meteo_valid & ~wd_exclude & ~wd_exclude_vitale)
-    
+
     # Set invalid data to nan
     Icon_sel.iloc[:, ~valid_mask] = np.nan
     Rcon_sel.iloc[:, ~valid_mask] = np.nan
     Icosp_sel.iloc[:, ~valid_mask] = np.nan
-    
+
     del Icon_raw
     del Rcon_raw
     del Icosp_raw
-    
-    return Icon_sel,Rcon_sel,Icosp_sel,meteo_df,WS,WD,Ustar,Zeta,FlagF_H,FlagF_g,FlagVM_T,FlagVM_w,FlagVM_g
 
+    return Icon_sel,Rcon_sel,Icosp_sel,meteo_df,WS,WD,Ustar,Zeta,FlagF_H,FlagF_g,FlagVM_T,FlagVM_w,FlagVM_g

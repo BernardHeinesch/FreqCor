@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """
 Created on Tue Apr 8 2025
 
@@ -90,7 +90,7 @@ def validate_config(config):
         flx_meteo = config['IO'].get('flx_meteo', '')
         binned_cosp = config['IO']['binned_cosp']
         # vitale_path and rh_path are only used by FREQCOR_Read_EP
-        if read_routine == 'FREQCOR_Read_EP':
+        if read_routine.lower() == 'freqcor_read_ep':
             if vitale_qc_flags == 1:
                 vitale_path = config['IO']['vitale_path']
             if rh_from_file == 1:
@@ -190,7 +190,7 @@ def validate_config(config):
     )
 
     # Validate input paths and expected files
-    if read_routine == 'FREQCOR_Read_EP':
+    if read_routine.lower() == 'freqcor_read_ep':
         expected_flux_files = glob.glob(flx_meteo)
         if len(expected_flux_files) == 0:
             valid = False
@@ -206,7 +206,7 @@ def validate_config(config):
         valid = False
         errors.append(f"No binned cospectra file found matching binned_cosp pattern: {binned_cosp}")
 
-    if read_routine == 'FREQCOR_Read_EP' and vitale_qc_flags == 1:
+    if (read_routine.lower() == 'freqcor_read_ep') and (vitale_qc_flags == 1):
         vitale_csv_files = glob.glob(vitale_path)
         if len(vitale_csv_files) == 0:
             valid = False
@@ -246,7 +246,7 @@ def validate_config(config):
     if rh_from_file not in [0, 1]:
         valid = False
         errors.append("PROCEDURE_OPTIONS.rh_from_file must be 0 or 1")
-    elif rh_from_file == 1 and read_routine == 'FREQCOR_Read_EP':
+    elif (rh_from_file == 1) and (read_routine.lower() == 'freqcor_read_ep'):
         rh_csv_files = glob.glob(rh_path)
         if len(rh_csv_files) == 0:
             valid = False
@@ -369,12 +369,15 @@ def validate_config(config):
                             )
 
     # Validate read_routine
-    if read_routine not in ['FREQCOR_Read_EP', 'FREQCOR_Read_GEddySoft']:
+    if read_routine.lower() not in ['freqcor_read_ep',
+                                    'freqcor_read_geddysoft',
+                                    'freqcor_read_heddysoft']:
         valid = False
-        errors.append("read_routine must be one of: FREQCOR_Read_EP, FREQCOR_Read_GEddySoft")
-
+        errors.append("read_routine must be one of: FREQCOR_Read_EP,"
+                      " FREQCOR_Read_GEddySoft, FREQCOR_Read_HEddySoft")
+    
     # GEddySoft-specific checks
-    if read_routine == 'FREQCOR_Read_GEddySoft':
+    if read_routine.lower() == 'freqcor_read_geddysoft':
         src_type = config['IO'].get('source_type', '').strip().lower()
         if src_type not in ('irga', 'tof', 'tracer'):
             valid = False
@@ -390,7 +393,7 @@ def validate_config(config):
             except ValueError:
                 valid = False
                 errors.append(f"IO.target_mz must be a number (got '{target_mz_str}')")
-    
+
     return valid, errors
 
 

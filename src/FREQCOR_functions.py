@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 
 """Utility functions used across the FREQCOR processing pipeline."""
 import numpy as np
@@ -11,9 +11,9 @@ from scipy.optimize import curve_fit
 def check_var_tf(trafun,jtmin,jtmax,varclim):
     """
     Function that computes the coefficient of variation of the transfer
-    function normalisation factor and compares it to the user-defined limit. 
-    If the coefficient of variation exceeds its limit value, the transfer 
-    function is discarded and the cut-off frequency won't be computed for that 
+    function normalisation factor and compares it to the user-defined limit.
+    If the coefficient of variation exceeds its limit value, the transfer
+    function is discarded and the cut-off frequency won't be computed for that
     specific half-hour or wind class.
 
     Parameters
@@ -26,28 +26,28 @@ def check_var_tf(trafun,jtmin,jtmax,varclim):
     jtmax : int
         Index for the upper threshold of the user-defined normalisation range.
     varclim : float
-        User-defined limit for the coefficient of variation of the 
+        User-defined limit for the coefficient of variation of the
         normalisation factor. If exceeded, the transfer function is discarded.
 
     Returns
     -------
     trafun : TYPE
-        Experimental transfer function after potential filtering performed 
+        Experimental transfer function after potential filtering performed
         according to the results of the check of the coefficient of variation
         against the set limit. Is "False" if it didn't pass the check.
 
     """
-    mf=np.nanmean(trafun.iloc[jtmin:jtmax+1],axis=0) 
+    mf=np.nanmean(trafun.iloc[jtmin:jtmax+1],axis=0)
     varcof= np.nanstd(trafun.iloc[jtmin:jtmax+1],axis=0)/(np.nanmean(trafun.iloc[jtmin:jtmax+1],axis=0))
-    
+
     if isinstance(mf,float): # if work with mean values (mf not dataframe but single float)
         if varcof > varclim:
-            trafun.iloc[:] = False #Series as the method .all will be applied on it after
+            trafun.iloc[:] = 0  # False #Series as the method .all will be applied on it after
     else: # if half-hour data
         for i in range(0,len(mf)):
             if varcof[i] <= 0 or varcof[i] > varclim:
-                trafun.iloc[:,i]=False 
-        
+                trafun.iloc[:,i]= 0  # False
+
     return trafun
 
 def fun_Lorentz(x,a,c):
@@ -56,9 +56,9 @@ def fun_Lorentz(x,a,c):
     """
 
     # Lorentzian regression
-    # The coefficient (a) is the cut-off frequency (fco)    
+    # The coefficient (a) is the cut-off frequency (fco)
     # The coefficient (c) is the normalization factor (Fn)
-    return c/(1+(x/a)**2)             
+    return c/(1+(x/a)**2)
 
 
 def fun_Gauss(x,a,c):
@@ -67,7 +67,7 @@ def fun_Gauss(x,a,c):
     """
 
     # Gaussian regression
-    # The coefficient (a) is the cut-off frequency (fco)    
+    # The coefficient (a) is the cut-off frequency (fco)
     # The coefficient (c) is the normalization factor (Fn)
     return c*np.exp(-np.log(2)*(x/a)**2)
 
@@ -78,29 +78,29 @@ def fun_Lorentz_peltola(x,a,c):
     """
 
     # Lorentzian regression
-    # The coefficient (a) is the cut-off frequency (fco)    
+    # The coefficient (a) is the cut-off frequency (fco)
     # The coefficient (c) is the normalization factor (Fn)
-    return c*np.sqrt(1/(1+(x/a)**2))             
+    return c*np.sqrt(1/(1+(x/a)**2))
 
 def av_Kaimal(Icos,freq,freqn,zL,A0,kf0,mu):
     """
-    Function to compute the average Kaimal, Massman and ideal cospectra 
-    
+    Function to compute the average Kaimal, Massman and ideal cospectra
+
     Parameters
     ----------
     Icos : pd.DataFrame
-        [nfreq,nspec_f]: contains 1/2 hour (co)spectral data of sonic 
+        [nfreq,nspec_f]: contains 1/2 hour (co)spectral data of sonic
         temperature, already filtered for best data quality.
     freq : pd.Series
         [nfreq,]: natural frequency data, in log-spaced bins.
     freqn : pd.DataFrame
         [nfreq,nspec_f]: normalised frequency data, in log-spaced bins, for
         each available 1/2 hour also present in the "Icos" DataFrame.
-    
+
     Returns
     -------
     grouped_data : pd.DataFrame
-        [nfreq,3]: DataFrame with newly log-binned frequencies and averaged 
+        [nfreq,3]: DataFrame with newly log-binned frequencies and averaged
         values for the ideal, Kaimal and Massman cospectra
 
     """
@@ -108,9 +108,9 @@ def av_Kaimal(Icos,freq,freqn,zL,A0,kf0,mu):
     # ideal cospectral data and the normalised frequencies
     Icos_n = Icos.T.stack()
     freq_n = freqn.T.stack()
-    
+
     # Create a series of the same size as the two above with the natural
-    # frequencies by repeating the same list as many time as needed and 
+    # frequencies by repeating the same list as many time as needed and
     # concatenating them
     freq_list = pd.Series(freq.tolist()*freqn.shape[1])
     Icos_n = Icos_n.droplevel(level=1)
@@ -126,38 +126,38 @@ def av_Kaimal(Icos,freq,freqn,zL,A0,kf0,mu):
     cosp_av = pd.concat([freq_n,Icos_nf],axis=1)
     cosp_av_sort = cosp_av.sort_values(by=0)
     cosp_av_sort = cosp_av_sort.reset_index(drop=True)
-    
+
     # Create the new vector of "averaged" normalised frequencies: log-space in
-    # as many bins as the original ones (len(freq)) the vector with all the  
+    # as many bins as the original ones (len(freq)) the vector with all the
     # normalised frequencies.
     # Then add a "0" line so that the first bin goes from 0 to log_bins[1]
     log_bins = np.logspace(np.log10(cosp_av_sort.iloc[0,0]),np.log10(cosp_av_sort.iloc[-1,0]),len(freq))
-    log_bins_groups = np.append(np.array(0),log_bins) 
-    
+    log_bins_groups = np.append(np.array(0),log_bins)
+
     # Use pandas .cut and .groupby to first create the groups according to the
     # pre-defined bins and the normalised frequency column. Each group includes
     # the right-extremum and excludes the left one (x1, x2].
     # Groupby the created groups and take the mean of the values in the bin
     groups = pd.cut(cosp_av_sort.iloc[:,0], log_bins_groups)
     grouped_data = cosp_av_sort.groupby(groups, observed=False).mean()
-    
+
     # Drop the averaged normalised frequency column as it makes no sense
     # Replace the group index by the log_bins values
     # Rename the columns so that they are easily recognised
-    grouped_data = grouped_data.drop(0, axis=1) 
-    
+    grouped_data = grouped_data.drop(0, axis=1)
+
     # grouped_data.columns = ['Ideal','Kaimal']
     grouped_data.columns = ['Ideal']
-    
+
     grouped_data = grouped_data.reset_index(drop=True)
     kaimal = pd.Series(np.zeros(shape=freq.shape))
-    
+
     for k in range(len(log_bins)):
         kaimal[k] = Kaimal_cosp(freq[k],log_bins[k],zL[0])*freq[k]
-    
+
     grouped_data = pd.concat([grouped_data,kaimal.rename('Kaimal')],axis=1)
-    
-    
+
+
     # Add Massman model cospectrum
     massman = pd.Series(np.zeros(shape=freq.shape))
     if not(np.isnan(A0).all()) and not(np.isnan(kf0).all()) and not(np.isnan(mu).all()):
@@ -166,9 +166,9 @@ def av_Kaimal(Icos,freq,freqn,zL,A0,kf0,mu):
     else:
         massman.loc[:]=np.nan
     grouped_data = pd.concat([grouped_data,massman.rename('Massman')],axis=1)
-    
+
     grouped_data.index = log_bins
-    
+
     return(grouped_data)
 
 
@@ -277,10 +277,10 @@ def TFsonic(freq,ws):
     fp_sonic = freq*abs(sonic_len/ws) # Normalised frequency defined for the path averaging TF definition
 
     # sonic dynamic time response
-    TFFdsonic = 1 / np.sqrt(1 + (2 * np.pi * freq[:] / sonic_freq)**2 )    
+    TFFdsonic = 1 / np.sqrt(1 + (2 * np.pi * freq[:] / sonic_freq)**2 )
     # sonic path-averaging
     TFFwsonic = (2 / (np.pi * fp_sonic)) * (1 + np.exp(-2 * np.pi * fp_sonic) / 2 - 3 * (1 - np.exp(-2 * np.pi * fp_sonic)) / (4 * np.pi * fp_sonic))
-        
+
     TFs= TFFdsonic * np.sqrt(TFFwsonic) # sqrt for the term of path averaging since estimated through spectra
     return TFs
 
@@ -516,18 +516,18 @@ def write_cflut_to_csv(outfile,data_dict,gss):
 
 # Define the model to fit: PS_original * b / (1 + (2 * np.pi * freq_binned * a)^2) + freq_binned * d
 # If PS_original is passed explicitely as a input, then the curve_fit method
-# cannot be directly used because PS_original is not the independent variable 
-# nor one of the parameters that have to be optimised. 
-# So to still perform the non-linear regression, use of partial function application 
+# cannot be directly used because PS_original is not the independent variable
+# nor one of the parameters that have to be optimised.
+# So to still perform the non-linear regression, use of partial function application
 def fit_func(freq_binned, a, b, d, PS_original):
     """
     @author: Aslan et al. 2021
     Translated by A. FaurÃ¨s from Matlab to Python on 21/10/2024
-    
-    Function to fit power spectra. The function is defined as the sum of an 
-    attenuated turbulent signal component and an independent white noise 
+
+    Function to fit power spectra. The function is defined as the sum of an
+    attenuated turbulent signal component and an independent white noise
     compontent.
-    
+
 
     Parameters
     ----------
@@ -557,11 +557,11 @@ def fit_func(freq_binned, a, b, d, PS_original):
 def fit_Aslan21(f, ideal_sp, real_sp, par_bounds, ini_par):
     """
     @author: Aslan et al. 2021
-    Translated by A. Faurès from Matlab to Python on 21/10/2024 
-    
+    Translated by A. Faurès from Matlab to Python on 21/10/2024
+
     Function to fit the equation developed by Aslan et al. 2021 to any spectral
     case and dataset.
-    
+
     Parameters
     ----------
     f : numpy array
@@ -589,48 +589,48 @@ def fit_Aslan21(f, ideal_sp, real_sp, par_bounds, ini_par):
         Calculation of the noise term as f*d.
 
     """
-    
+
     # Input parameters:
     # Version adapted from Aslan et al. 2021 code to correctly set the
     # parameter bounds and not use the fitting thresholds to do so (as it
     # was the case)
-    
+
     # Low_lim = lim[0]  # lower threshold for fitting (Hz)
     # Up_lim = lim[1]       # upper threshold for fitting (Hz)
 
     # Bounds for a, b, d (from Low_lim to Up_lim)
     # param_bounds = ([Low_lim, Low_lim, -5], [Up_lim, Up_lim, 5])
-    
-    
+
+
     # Perform the non-linear curve fitting, passing ideal_sp via a lambda function
     # See above (befor def function) why the lamba function has to be used
-    popt, pcov = curve_fit(lambda f, a, b, d: fit_func(f, a, b, d, ideal_sp), 
+    popt, pcov = curve_fit(lambda f, a, b, d: fit_func(f, a, b, d, ideal_sp),
                            f, real_sp, p0=ini_par, bounds=par_bounds)
-    
+
     # Extract optimized parameters
     Tc, Fn, Int_point = popt
     # Tc = a : time constant for low-pass filtering
     # Fn = b : normalisation factor for the transfer function
     # Int_point = d : intercept of noise line with y axis; noise contribution
-    
+
     # Print optimized parameters
     # print(f"Optimized parameters: Tc = {Tc}, Fn = {Fn}, Int_point = {Int_point}")
-    
+
     # Calculate PSA_A21 based on the fitted parameters
     PSA_A21 = ideal_sp * Fn / (1 + (2 * np.pi * f * Tc) ** 2) + f * Int_point
-    
-    
+
+
     # Calculate R^2 (goodness of fit)
     residuals = real_sp - fit_func(f, *popt, ideal_sp)
     ss_res = np.sum(residuals**2)
     ss_tot = np.sum((real_sp - np.mean(real_sp))**2)
     r_squared = 1 - (ss_res / ss_tot)
-    
+
     # Output the results
     print(f"R^2 (Goodness of fit): {r_squared}")
-    
+
     noise = f*Int_point
-    
+
     return popt, pcov, PSA_A21, r_squared, noise
 
 def test_and_apply_denoising(Rcos, Icos, freq, trafun, tfmin, tfmax, fit_Aslan21, bounds):

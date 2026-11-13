@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """
 FREQCOR_Start.py: Main entry point for FREQCOR spectral/cospectral correction analysis
 =====================================================================================
@@ -100,8 +100,11 @@ warnings.filterwarnings(
 # Runs the code directly with the .ini file provided.
 # Insert ini file to be processed
 manual = True
-if manual == True and __name__ == "__main__":
-    ini_file = r"..\examples\metadata\FREQCOR_config_example_EddyPro.ini"
+if manual and __name__ == "__main__":
+    ini_file = r"examples/metadata/FREQCOR_config_example_EddyPro.ini"
+    # ini_file = r"examples/metadata/FREQCOR_config_example_GEddySoft.ini"
+    # ini_file = r"examples/metadata/FREQCOR_config_example_HEddySoft.ini"
+
     ini_file = ini_file.strip().strip('"')
     if not ini_file:
         raise ValueError('Please set ini_file to a valid .ini path (paste the full path as a raw string).')

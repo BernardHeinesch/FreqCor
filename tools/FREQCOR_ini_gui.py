@@ -344,9 +344,10 @@ G = 'Plots'
 FIELDS = [
     # ---- IO / essentials --------------------------------------------------
     ('IO', 'read_routine', 'Read routine', 'choice',
-     ['FREQCOR_Read_EP', 'FREQCOR_Read_GEddySoft'],
+     ['FREQCOR_Read_EP', 'FREQCOR_Read_GEddySoft', 'FREQCOR_Read_HEddySoft'],
      "FREQCOR_Read_EP : standard EddyPro run output.\n"
-     "FREQCOR_Read_GEddySoft : GEddySoft HDF5 files (IRGA or TRACER/TOF).",
+     "FREQCOR_Read_GEddySoft : GEddySoft HDF5 files (IRGA or TRACER/TOF).\n"
+     "FREQCOR_Read_HEddySoft : HEddySoft pickle file.",
      None, E),
     ('IO', 'source_type', "Source GEddySoft", 'choice', ['irga', 'tof'],
      "irga : 'IRGA' group of the HDF5 files, channel selected by name/gss.\n"
@@ -361,7 +362,8 @@ FIELDS = [
     ('IO', 'binned_cosp', 'Binned cospectra (glob)', 'glob', None,
      "Full pattern of the input files.\n"
      "  EP        : *binned_cospectra*_adv.csv\n"
-     "  GEddySoft : *.hdf5",
+     "  GEddySoft : *.hdf5\n"
+     "  HEddySoft : file.pkl",
      None, E),
     ('IO', 'output_path', 'Output folder', 'dir', None,
      "Folder where results and figures are written.",
@@ -903,6 +905,7 @@ class IniGui(tk.Tk):
         rr = val('IO', 'read_routine')
         is_ep = rr == 'FREQCOR_Read_EP'
         is_ges = rr == 'FREQCOR_Read_GEddySoft'
+        # is_hes = rr == 'FREQCOR_Read_HEddySoft'
         is_tof = val('IO', 'source_type') == 'tof'
         tof_ges = is_ges and is_tof          # gss forced to non-H2O branch
         is_h2o = (val('PROCEDURE_OPTIONS', 'gss') == '2'

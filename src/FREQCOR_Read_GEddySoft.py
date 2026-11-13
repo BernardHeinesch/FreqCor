@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """
 Created on Dec 28 2022 - merged version Nov 10 2026
 
@@ -367,7 +367,7 @@ def FREQCOR_Read_GEddySoft(config, jsite):
 
             # Create meteo_df_d with timestamps as first column
             meteo_df_d = pd.concat([
-                pd.DataFrame(np.zeros(shape=(n_hh,))),                                   # timestamp placeholder
+                pd.DataFrame(np.zeros(shape=(n_hh,), dtype='datetime64[us]')),                                   # timestamp placeholder
                 pd.DataFrame(np.nan_to_num(np.transpose(np.array(hdf5_f['MET']['wT']) * 1206))),  # H
                 pd.DataFrame(flux_fc),                                                    # Fc
                 pd.DataFrame(np.full(n_hh, 999.0)),                                       # FcEP placeholder
@@ -376,11 +376,10 @@ def FREQCOR_Read_GEddySoft(config, jsite):
                 pd.DataFrame(rh_vals),                                                    # RH
             ], axis=1)
 
-            meteo_df_d.iloc[:, 0] = timestamps
-
             # Convert byte strings to strings, then to datetime
-            meteo_df_d.iloc[:, 0] = pd.to_datetime([x.decode() if isinstance(x, bytes) else str(x) for x in meteo_df_d.iloc[:, 0]],
-                                                   format='%Y-%m-%d %H-%M-%S')
+            meteo_df_d.iloc[:, 0] = pd.to_datetime(
+                [ x.decode() if isinstance(x, bytes) else str(x)
+                  for x in timestamps ], format='%Y-%m-%d %H-%M-%S')
 
             # When concatenating, preserve index (do not use ignore_index=True)
             meteo_df = pd.concat([meteo_df, meteo_df_d], axis=0, ignore_index=True)
@@ -579,7 +578,7 @@ def FREQCOR_Read_GEddySoft(config, jsite):
 
         plt.tight_layout()
 
-        if int(config['PROCEDURE_OPTIONS']['plot_save']) == 1:
+        if int(config['PLOTS']['plot_save']) == 1:
             plt.savefig(config['IO']['output_path'] + '/flux filtering.png')
             plt.close()
         else:
